@@ -334,11 +334,12 @@ async function slist(p){ try{
 
 var K={ meta:"ankidash:meta", cards:"ankidash:cards:", edits:"ankidash:edits",
         status:"ankidash:status", notes:"ankidash:notes", etym:"ankidash:etym", story:"ankidash:story",
-        sent:"ankidash:sent", mtime:"ankidash:mtime", sync:"ankidash:sync" };
+        sent:"ankidash:sent", mtime:"ankidash:mtime", mtimes:"ankidash:mtimes", sync:"ankidash:sync" };
 
 /* ---------- состояние ---------- */
 var TIER={ A:12, B:8, C:4 };
-var S={ cards:[], edits:{}, status:{}, notes:{}, etym:{}, story:{}, sent:{}, lastTask:null, mtime:{}, sync:{}, imports:[], deck:null,
+var S={ cards:[], edits:{}, status:{}, notes:{}, etym:{}, story:{}, sent:{}, lastTask:null,
+        mtime:{}, mtimes:{}, cardsAt:0, sync:{}, imports:[], deck:null,
         filters:{}, sort:"again", q:"", page:0, PAGE:60, open:null, cursor:-1,
         theme:"auto", drill:null, _vis:[], _idx:{read:{},kanji:{}}, _byId:{} };
 var $=function(s){ return document.querySelector(s); };
@@ -527,9 +528,8 @@ function mergeAnswer(rows,cols){
     if(!et && !st) return;
     var c=(cId&&byId[String(r[cId]).trim()])||(cNote&&byNote[String(r[cNote]).trim()])||(cW&&byWord[String(r[cW]).trim()]);
     if(!c){ miss++; return; }
-    if(et) S.etym[c.id]=et;
-    if(st) S.story[c.id]=st;
-    touch(c.id);
+    if(et){ S.etym[c.id]=et; touch(c.id,"etym"); }
+    if(st){ S.story[c.id]=st; touch(c.id,"story"); }
     ok++;
   });
   return { ok:ok, miss:miss };
@@ -557,6 +557,7 @@ async function handleFiles(files){
     prog.textContent="Сверяю с тем, что уже есть…";
     var stamp=new Date().toISOString().slice(0,10);
     var res=mergeCards(buildCards(cards.rows,cards.cols),stamp);
+    S.cardsAt=Date.now();
     S.imports.unshift({ at:stamp, added:res.added, moved:res.moved });
     S.imports=S.imports.slice(0,20);
     buildIndex();
@@ -571,15 +572,18 @@ async function handleFiles(files){
 
 /* ---------- сохранение ---------- */
 var CHUNK=300;
-function meta(){ return { v:5, at:Date.now(), chunks:Math.ceil(S.cards.length/CHUNK), deck:S.deck,
-  imports:S.imports, theme:S.theme, sort:S.sort, lastTask:S.lastTask }; }
+function meta(){ return { v:6, at:Date.now(), chunks:Math.ceil(S.cards.length/CHUNK), deck:S.deck,
+  imports:S.imports, theme:S.theme, sort:S.sort, lastTask:S.lastTask, cardsAt:S.cardsAt||0 }; }
 async function saveMeta(){ return await sset(K.meta,JSON.stringify(meta())); }
+/* _s — строка для поиска, её собирает buildIndex при загрузке. Хранить её незачем,
+   а весит она как все словари вместе взятые. */
+function bare(c){ var o={}; for(var k in c) if(k!=="f"&&k!=="_s") o[k]=c[k]; return o; }
 function pack(cards){ return cards.map(function(c){
-  var o={}; for(var k in c) if(k!=="f") o[k]=c[k];
+  var o=bare(c);
   o.f=c.f.map(function(f){ return f.dict?{key:f.key,label:f.label,ed:false,dict:true,v:f.v.slice(0,STORE_DICT_MAX)}:f; });
   return o; }); }
 function slim(cards){ return cards.map(function(c){
-  var o={}; for(var k in c) if(k!=="f") o[k]=c[k];
+  var o=bare(c);
   o.f=c.f.filter(function(f){ return f.ed; }).map(function(f){ return {key:f.key,label:f.label,ed:true,v:f.v.slice(0,300)}; });
   return o; }); }
 async function saveAll(){
@@ -601,6 +605,7 @@ async function saveAll(){
   await sset(K.story,JSON.stringify(S.story));
   await sset(K.sent,JSON.stringify(S.sent));
   await sset(K.mtime,JSON.stringify(S.mtime));
+  await sset(K.mtimes,JSON.stringify(S.mtimes));
   if(!ok) toast("Хранилище переполнено: словари не сохранены, тексты на месте",5000);
   return ok;
 }
@@ -612,20 +617,29 @@ async function saveTexts(){
   await sset(K.story,JSON.stringify(S.story));
   await sset(K.sent,JSON.stringify(S.sent));
   await sset(K.mtime,JSON.stringify(S.mtime));
+  await sset(K.mtimes,JSON.stringify(S.mtimes));
   await saveMeta();
 }
 var saveT=null;
-function touch(id){ S.mtime[id]=Date.now(); }
+/* время правки: общее по карточке (старый формат) и отдельное по полю —
+   по нему при слиянии видно, что именно здесь стёрли, а что просто не заводили */
+function touch(id,key){
+  var now=Date.now();
+  if(key){ if(!S.mtimes[key]) S.mtimes[key]={}; S.mtimes[key][id]=now; }
+  if(key!=="edits") S.mtime[id]=now;
+}
 function saveSoon(){ clearTimeout(saveT); saveT=setTimeout(async function(){
   await sset(K.edits,JSON.stringify(S.edits)); await sset(K.status,JSON.stringify(S.status));
   await sset(K.notes,JSON.stringify(S.notes)); await sset(K.etym,JSON.stringify(S.etym));
   await sset(K.story,JSON.stringify(S.story)); await sset(K.sent,JSON.stringify(S.sent));
-  await sset(K.mtime,JSON.stringify(S.mtime)); await saveMeta();
-  if(S.sync.auto&&S.sync.token&&S.sync.ready) syncPush(true); },700); }
+  await sset(K.mtime,JSON.stringify(S.mtime)); await sset(K.mtimes,JSON.stringify(S.mtimes));
+  await saveMeta();
+  syncSoon(); },700); }
 async function loadAll(){
   var m=await sget(K.meta); if(!m) return false;
   try{ m=JSON.parse(m); }catch(e){ return false; }
   S.deck=m.deck||null; S.imports=m.imports||[]; S.theme=m.theme||"auto"; if(m.sort) S.sort=m.sort; S.lastTask=m.lastTask||null;
+  S.cardsAt=m.cardsAt||0;
   var arr=[];
   for(var c=0;c<(m.chunks||0);c++){ var s=await sget(K.cards+c); if(s){ try{ arr=arr.concat(JSON.parse(s)); }catch(e){} } }
   S.cards=arr;
@@ -636,6 +650,7 @@ async function loadAll(){
   var so=await sget(K.story); if(so) try{ S.story=JSON.parse(so); }catch(x){}
   var sn=await sget(K.sent); if(sn) try{ S.sent=JSON.parse(sn); }catch(x){}
   var mt=await sget(K.mtime); if(mt) try{ S.mtime=JSON.parse(mt); }catch(x){}
+  var mts=await sget(K.mtimes); if(mts) try{ S.mtimes=JSON.parse(mts)||{}; }catch(x){}
   buildIndex();
   return S.cards.length>0;
 }
@@ -647,6 +662,7 @@ function setEdit(c,key,val,orig){
   if(val===orig){ if(S.edits[c.note]){ delete S.edits[c.note][key];
       if(!Object.keys(S.edits[c.note]).length) delete S.edits[c.note]; } }
   else { if(!S.edits[c.note]) S.edits[c.note]={}; S.edits[c.note][key]=val; }
+  touch(c.note,"edits");
   saveSoon();
 }
 function byLabel(c,l){ for(var i=0;i<c.f.length;i++) if(c.f[i].label===l) return valOf(c,c.f[i]); return ""; }
@@ -823,11 +839,23 @@ function editorHTML(c){
       (isEdited(c)?'<button class="btn ghost" data-act="revert">Вернуть исходный текст</button>':"")+
       '<span class="grow"></span><button class="btn ghost" data-act="close">Свернуть</button></div></div>';
 }
+/* пустой экран: без карточек «ничего не подошло» звучит как поломка,
+   хотя на деле не хватает только выгрузки статистики */
+function emptyHTML(){
+  if(S.cards.length) return '<p class="empty">Ничего не подошло.</p>';
+  var et=Object.keys(S.etym).length, st=Object.keys(S.story).length, nt=Object.keys(S.notes).length;
+  if(!et&&!st&&!nt) return "";
+  return '<p class="empty">Ваши тексты на месте: '+et+' разборов, '+st+' интересного, '+nt+' заметок.<br>'+
+    'А карточек на этом устройстве нет — их не к чему привязать.<br><br>'+
+    'Перетащите сюда <b>card_summary.csv</b>, тексты подхватятся сами'+
+    (S.sync.gist?'.<br>Или заберите колоду из хранилища: ⋯ → Синхронизация → Забрать — если её туда отправляли.':'.')+
+    '</p>';
+}
 function renderList(){
   var v=visible(); S._vis=v;
   var slice=v.slice(0,(S.page+1)*S.PAGE), html="";
   for(var i=0;i<slice.length;i++){ html+=rowHTML(slice[i],i); if(S.open===slice[i].id) html+=editorHTML(slice[i]); }
-  $("#list").innerHTML=html||'<p class="empty">Ничего не подошло.</p>';
+  $("#list").innerHTML=html||emptyHTML();
   $("#count").textContent=v.length+" из "+S.cards.length;
   $("#more").innerHTML=slice.length<v.length?'<button class="btn" id="moreBtn">Ещё '+Math.min(S.PAGE,v.length-slice.length)+'</button>':"";
   var mb=$("#moreBtn"); if(mb) mb.onclick=function(){ S.page++; renderList(); };
@@ -879,7 +907,7 @@ $("#list").addEventListener("click",function(e){
     var btn=e.target.closest("[data-act]"); if(!btn) return;
     var cid=btn.closest(".editor").dataset.ed;
     var card=S.cards.filter(function(x){ return x.id===cid; })[0], act=btn.dataset.act;
-    if(act==="done"){ if(S.status[cid]==="done") delete S.status[cid]; else S.status[cid]="done"; touch(cid);
+    if(act==="done"){ if(S.status[cid]==="done") delete S.status[cid]; else S.status[cid]="done"; touch(cid,"status");
       saveSoon(); renderHead(); renderChips(); renderList(); }
     if(act==="revert"){ delete S.edits[card.note]; saveSoon(); renderList(); toast("Текст возвращён"); }
     if(act==="drill"){ var pos=0; S._vis.forEach(function(x,i){ if(x.id===cid) pos=i; }); startDrill(S._vis,pos); }
@@ -903,9 +931,9 @@ function onEdit(e){
   var card=host?S.cards.filter(function(x){ return x.id===host.dataset.ed; })[0]:(S.drill?S.drill.list[S.drill.i]:null);
   if(!card) return;
   var t=e.target;
-  if(t.dataset.etym){ var v=t.value.trim(); if(v) S.etym[card.id]=v; else delete S.etym[card.id]; touch(card.id); saveSoon(); return; }
-  if(t.dataset.story){ var w=t.value.trim(); if(w) S.story[card.id]=w; else delete S.story[card.id]; touch(card.id); saveSoon(); return; }
-  if(t.dataset.note){ S.notes[card.id]=t.value; touch(card.id); saveSoon(); return; }
+  if(t.dataset.etym){ var v=t.value.trim(); if(v) S.etym[card.id]=v; else delete S.etym[card.id]; touch(card.id,"etym"); saveSoon(); return; }
+  if(t.dataset.story){ var w=t.value.trim(); if(w) S.story[card.id]=w; else delete S.story[card.id]; touch(card.id,"story"); saveSoon(); return; }
+  if(t.dataset.note){ var nv=t.value.trim(); if(nv) S.notes[card.id]=t.value; else delete S.notes[card.id]; touch(card.id,"notes"); saveSoon(); return; }
   var ta=t.closest("textarea[data-k]"); if(!ta) return;
   var f=card.f[+ta.dataset.i];
   setEdit(card,f.key,ta.value,f.v);
@@ -927,7 +955,7 @@ $("#drillNext").onclick=function(){ drillMove(1); };
 $("#drillExit").onclick=exitDrill;
 $("#drillDone").onclick=function(){
   var c=S.drill.list[S.drill.i];
-  if(S.status[c.id]==="done") delete S.status[c.id]; else S.status[c.id]="done"; touch(c.id);
+  if(S.status[c.id]==="done") delete S.status[c.id]; else S.status[c.id]="done"; touch(c.id,"status");
   saveSoon(); renderDrill(); setTimeout(function(){ drillMove(1); },180);
 };
 $("#startDrill").onclick=function(){ startDrill(visible(),0); };
@@ -1023,7 +1051,7 @@ function taskPool(withSent,withEtym){
 }
 function markSent(list){
   var today=new Date().toISOString().slice(0,10);
-  list.forEach(function(c){ S.sent[c.id]=today; touch(c.id); });
+  list.forEach(function(c){ S.sent[c.id]=today; touch(c.id,"sent"); });
   S.lastTask={ at:today, n:list.length, word:list.length?mainText(list[list.length-1]):"" };
   saveSoon();
 }
@@ -1101,7 +1129,7 @@ function copyCid(){
 function bulkDone(){
   var v=S._vis||[]; if(!v.length){ toast("Список пуст"); return; }
   var all=v.every(function(c){ return S.status[c.id]==="done"; });
-  v.forEach(function(c){ if(all) delete S.status[c.id]; else S.status[c.id]="done"; });
+  v.forEach(function(c){ if(all) delete S.status[c.id]; else S.status[c.id]="done"; touch(c.id,"status"); });
   saveSoon(); closeModal(); renderHead(); renderChips(); renderList();
   toast(all?"Отметки сняты":"Отмечено: "+v.length);
 }
@@ -1110,7 +1138,7 @@ $("#impBackup").addEventListener("change",function(e){
   var fr=new FileReader();
   fr.onload=async function(){
     try{ var j=JSON.parse(fr.result);
-      S.edits=j.edits||{}; S.status=j.status||{}; S.notes=j.notes||{}; S.etym=j.etym||{}; S.story=j.story||{}; S.sent=j.sent||{}; S.lastTask=j.lastTask||null; S.mtime=j.mtime||{};
+      S.edits=j.edits||{}; S.status=j.status||{}; S.notes=j.notes||{}; S.etym=j.etym||{}; S.story=j.story||{}; S.sent=j.sent||{}; S.lastTask=j.lastTask||null; S.mtime=j.mtime||{}; S.mtimes=j.mtimes||{};
       if(j.imports) S.imports=j.imports;
       await saveAll(); closeModal(); renderAll(); toast("Восстановлено");
     }catch(x){ toast("Файл не читается"); } };
@@ -1119,41 +1147,135 @@ $("#impBackup").addEventListener("change",function(e){
 
 
 /* ---------- синхронизация между устройствами (секретный gist на GitHub) ---------- */
-var SYNCFILE="anki-dashboard.json";
+var SYNCFILE="anki-dashboard.json";          // ваши тексты
+var CARDFILE="anki-dashboard-cards.json";    // сама колода без словарей: иначе на новом
+                                             // устройстве тексты некуда положить и экран пустой
+var CARD_FIELD_MAX=240, CARDS_MAX=3.6*1024*1024;
+
 function syncPayload(){
-  return { v:6, at:Date.now(), edits:S.edits, status:S.status, notes:S.notes,
-           etym:S.etym, story:S.story, sent:S.sent, lastTask:S.lastTask, mtime:S.mtime };
+  return { v:7, at:Date.now(), edits:S.edits, status:S.status, notes:S.notes,
+           etym:S.etym, story:S.story, sent:S.sent, lastTask:S.lastTask,
+           mtime:S.mtime, mtimes:S.mtimes };
 }
-function newerWins(local,remote,id){
-  var lm=S.mtime[id]||0, rm=(remote.mtime&&remote.mtime[id])||0;
-  return rm>lm;
+function cardPayload(lean){
+  var cards=S.cards.map(function(c){
+    var f=[];
+    for(var i=0;i<c.f.length;i++){
+      var x=c.f[i];
+      if(x.dict) continue;              // словари остаются на устройстве, они и есть весь вес
+      if(i>0&&!x.ed) continue;          // первое поле — само слово, его берём всегда
+      if(lean&&f.length>=3) break;
+      f.push({ key:x.key, label:x.label, ed:!!x.ed, v:String(x.v||"").slice(0,CARD_FIELD_MAX) });
+    }
+    return { id:c.id, note:c.note, deck:c.deck, n:c.n, a:c.a, rate:c.rate, t:c.t,
+             last:c.last, first:c.first, ivl:c.ivl, added:c.added, f:f };
+  });
+  return { v:1, at:S.cardsAt||Date.now(), n:cards.length, deck:S.deck||null, cards:cards };
 }
-function syncMerge(r){
-  var added=0, updated=0;
-  ["etym","story","notes"].forEach(function(key){
-    var rm=r[key]||{};
+
+/* Отметки времени. lastLocal/lastRemote — точное время правки этого поля,
+   undefined значит «здесь его вообще не трогали». Общий mtime по карточке —
+   для старых версий, где времени по полям ещё не было. */
+function lastLocal(key,id){ var m=S.mtimes[key]; return m&&m[id]!=null?m[id]:undefined; }
+function lastRemote(r,key,id){ var m=r.mtimes&&r.mtimes[key]; return m&&m[id]!=null?m[id]:undefined; }
+function localTime(key,id){ var e=lastLocal(key,id); return e===undefined?(S.mtime[id]||0):e; }
+function remoteTime(r,key,id){ var e=lastRemote(r,key,id); return e===undefined?((r.mtime&&r.mtime[id])||0):e; }
+
+function mergeTexts(r){
+  var added=0, updated=0, removed=0;
+  ["etym","story","notes","status","sent"].forEach(function(key){
+    var rm=r[key]||{}, mine=S[key];
     Object.keys(rm).forEach(function(id){
-      var val=rm[id]; if(!val) return;
-      if(!S[key][id]){ S[key][id]=val; added++; }
-      else if(S[key][id]!==val && newerWins(S[key][id],r,id)){ S[key][id]=val; updated++; }
+      var rv=rm[id]; if(rv==null||rv==="") return;
+      var lv=mine[id];
+      if(lv==null||lv===""){
+        var lx=lastLocal(key,id);
+        /* пусто здесь и есть там: берём, если только мы это сами не стёрли позже */
+        if(lx===undefined||remoteTime(r,key,id)>=lx){ mine[id]=rv; added++; }
+        return;
+      }
+      if(lv!==rv&&remoteTime(r,key,id)>localTime(key,id)){ mine[id]=rv; updated++; }
+    });
+    /* стёрли на другом устройстве — стираем и здесь. Только по точному времени поля,
+       иначе старая версия без mtimes снесла бы всё подряд. */
+    Object.keys(mine).forEach(function(id){
+      if(rm[id]!=null&&rm[id]!=="") return;
+      var rx=lastRemote(r,key,id); if(rx===undefined) return;
+      if(rx>localTime(key,id)){ delete mine[id]; removed++; }
     });
   });
-  Object.keys(r.status||{}).forEach(function(id){ if(!S.status[id]) S.status[id]=r.status[id]; });
-  Object.keys(r.sent||{}).forEach(function(id){ if(!S.sent[id]) S.sent[id]=r.sent[id]; });
-  Object.keys(r.edits||{}).forEach(function(nid){ if(!S.edits[nid]) S.edits[nid]=r.edits[nid]; });
+  var re=r.edits||{};
+  Object.keys(re).forEach(function(nid){
+    var lx=lastLocal("edits",nid), rt=remoteTime(r,"edits",nid);
+    if(!S.edits[nid]){ if(lx===undefined||rt>=lx){ S.edits[nid]=re[nid]; added++; } return; }
+    if(rt>localTime("edits",nid)){ S.edits[nid]=re[nid]; updated++; }
+  });
+  Object.keys(S.edits).forEach(function(nid){
+    if(re[nid]) return;
+    var rx=lastRemote(r,"edits",nid); if(rx===undefined) return;
+    if(rx>localTime("edits",nid)){ delete S.edits[nid]; removed++; }
+  });
   Object.keys(r.mtime||{}).forEach(function(id){ if((r.mtime[id]||0)>(S.mtime[id]||0)) S.mtime[id]=r.mtime[id]; });
+  Object.keys(r.mtimes||{}).forEach(function(key){
+    var rm=r.mtimes[key]||{}; if(!S.mtimes[key]) S.mtimes[key]={};
+    Object.keys(rm).forEach(function(id){ if((rm[id]||0)>(S.mtimes[key][id]||0)) S.mtimes[key][id]=rm[id]; });
+  });
   if(r.lastTask&&(!S.lastTask||r.lastTask.at>S.lastTask.at)) S.lastTask=r.lastTask;
+  return { added:added, updated:updated, removed:removed };
+}
+/* колода из хранилища: новых карточек добавляем всегда, цифры перебиваем только
+   если тот экспорт свежее нашего — иначе свежая статистика откатится на старую */
+function mergeRemoteCards(rc){
+  var inc=(rc&&rc.cards)||[], added=0, updated=0;
+  if(!inc.length) return { added:0, updated:0 };
+  var idx={},i; for(i=0;i<S.cards.length;i++) idx[S.cards[i].id]=S.cards[i];
+  var fresh=(rc.at||0)>(S.cardsAt||0);
+  for(i=0;i<inc.length;i++){
+    var nc=inc[i]; if(!nc||nc.id==null) continue;
+    nc.id=String(nc.id); nc.note=String(nc.note==null?nc.id:nc.note); nc.f=nc.f||[];
+    var e=idx[nc.id];
+    if(!e){ S.cards.push(nc); idx[nc.id]=nc; added++; continue; }
+    if(!fresh) continue;
+    if(e.n!==nc.n||e.a!==nc.a) updated++;
+    e.n=nc.n; e.a=nc.a; e.rate=nc.rate; e.t=nc.t; e.ivl=nc.ivl;
+    e.last=nc.last||e.last; e.first=e.first||nc.first; e.deck=nc.deck||e.deck;
+    for(var j=0;j<nc.f.length;j++){                      // поля дописываем, свои не трогаем
+      var have=false;
+      for(var k=0;k<e.f.length;k++) if(e.f[k].key===nc.f[j].key){ have=true; break; }
+      if(!have) e.f.push(nc.f[j]);
+    }
+  }
+  if(fresh){ S.cardsAt=rc.at||Date.now(); if(rc.deck&&!S.deck) S.deck=rc.deck; }
+  if(added||updated) buildIndex();
   return { added:added, updated:updated };
 }
+
+/* адрес хранилища люди вставляют как ссылку целиком — вытаскиваем из неё id */
+function gistId(s){
+  s=String(s||"").trim();
+  if(!s) return "";
+  s=s.replace(/^https?:\/\/[^\/]+\//i,"").replace(/[#?].*$/,"").replace(/\.git$/i,"").replace(/\/+$/,"");
+  var parts=s.split("/");
+  return (parts[parts.length-1]||"").trim();
+}
 async function gist(method,path,body){
-  var res=await fetch("https://api.github.com"+path,{
-    method:method,
-    headers:{ "Authorization":"Bearer "+S.sync.token, "Accept":"application/vnd.github+json",
-              "Content-Type":"application/json" },
-    body: body?JSON.stringify(body):undefined });
-  if(!res.ok){ var err=new Error("GitHub ответил "+res.status+
-      (res.status===401?" — токен не подошёл":(res.status===404?" — хранилище не найдено":"")));
-    err.status=res.status; throw err; }
+  var res;
+  try{
+    res=await fetch("https://api.github.com"+path,{
+      method:method,
+      headers:{ "Authorization":"Bearer "+S.sync.token, "Accept":"application/vnd.github+json",
+                "Content-Type":"application/json" },
+      body: body?JSON.stringify(body):undefined });
+  }catch(e){ var ne=new Error("нет связи с github.com"); ne.status=0; throw ne; }
+  if(!res.ok){
+    var j=null; try{ j=await res.json(); }catch(x){}
+    var why=res.status===401 ? " — токен не подошёл или отозван"
+          : res.status===404 ? " — хранилище не найдено: проверьте адрес, а у токена — право gist"
+          : res.status===403 ? " — github не пустил, возможно упёрлись в лимит запросов"
+          : res.status===422 ? " — github не принял данные"+(j&&j.message?": "+j.message:"")
+          : (j&&j.message?" — "+j.message:"");
+    var err=new Error("GitHub ответил "+res.status+why); err.status=res.status; throw err;
+  }
   return await res.json();
 }
 function counts(o){
@@ -1161,86 +1283,145 @@ function counts(o){
            nt:Object.keys(o.notes||{}).length, dn:Object.keys(o.status||{}).length };
 }
 function countsText(c){ return c.et+" разборов, "+c.st+" интересного, "+c.nt+" заметок"; }
-async function remoteRead(){                 // null — хранилища нет
+function stampNow(){ return new Date().toISOString().slice(0,16).replace("T"," "); }
+async function remoteFile(g,name){
+  var f=g.files&&g.files[name]; if(!f) return null;
+  var text=f.content;
+  if(f.truncated||text==null){
+    var res; try{ res=await fetch(f.raw_url); }catch(e){ res=null; }
+    if(!res||!res.ok) throw new Error("github не отдал "+name+" целиком");
+    text=await res.text();
+  }
+  try{ return JSON.parse(text); }catch(e){ throw new Error("в хранилище испорченный "+name); }
+}
+async function remoteAll(){                 // null — хранилища нет
   if(!S.sync.gist) return null;
   var g=await gist("GET","/gists/"+S.sync.gist);
-  var f=g.files&&g.files[SYNCFILE];
-  if(!f) return null;
-  var text=f.truncated ? await (await fetch(f.raw_url)).text() : f.content;
-  return JSON.parse(text);
+  return { texts:await remoteFile(g,SYNCFILE), cards:await remoteFile(g,CARDFILE) };
+}
+function syncFail(what,e,quiet){
+  console.warn("sync:",e);
+  var cfg=(e.status===401||e.status===403||e.status===404||e.status===422);
+  if(!quiet||cfg) toast(what+": "+e.message,6000);
+}
+/* один обмен за раз: автоотправка не должна влезать в середину «Забрать» */
+var syncBusy=false, syncQueued=false, syncT=null;
+function syncSoon(){
+  if(!(S.sync.auto&&S.sync.token&&S.sync.gist&&S.sync.ready)) return;
+  clearTimeout(syncT); syncT=setTimeout(function(){ syncPush(true); },5000);
 }
 /* Отправка сначала забирает то, что уже лежит, и сливает с локальным.
    Без этого устройство, на котором ещё пусто, затирало работу с другого. */
 async function syncPush(quiet){
   if(!S.sync.token){ if(!quiet) toast("Сначала укажите токен"); return; }
+  if(syncBusy){ if(quiet) syncQueued=true; else toast("Уже синхронизирую, секунду"); return; }
+  syncBusy=true;
+  var withCards=false;
   try{
+    var changed=null;
     if(S.sync.gist){
       try{
-        var r=await remoteRead();
-        if(r) syncMerge(r);
+        var r=await remoteAll();
+        if(r&&r.texts) changed=mergeTexts(r.texts);
       }catch(e){
-        if(e.status===404){ S.sync.gist=""; }
-        else{ if(!quiet) toast("Не сверился с хранилищем, отправку отменил: "+e.message,6000); return; }
+        if(e.status===404){ S.sync.gist=""; toast("Прежнее хранилище не нашлось, создаю новое",5000); }
+        else{ syncFail("Не сверился с хранилищем, отправку отменил",e,quiet); return; }
       }
     }
     var files={}; files[SYNCFILE]={ content:JSON.stringify(syncPayload()) };
+    if(S.sync.cards!==false&&S.cards.length){
+      var cp=JSON.stringify(cardPayload(false));
+      if(cp.length>CARDS_MAX) cp=JSON.stringify(cardPayload(true));
+      if(cp.length>CARDS_MAX){ if(!quiet) toast("Колода великовата для хранилища — отправил только тексты",6000); }
+      else { files[CARDFILE]={ content:cp }; withCards=true; }
+    }
     if(S.sync.gist) await gist("PATCH","/gists/"+S.sync.gist,{files:files});
     else{
       var g=await gist("POST","/gists",{ description:"Разбор колоды — мои разборы", public:false, files:files });
       S.sync.gist=g.id;
     }
-    S.sync.at=new Date().toISOString().slice(0,16).replace("T"," ");
+    S.sync.at=stampNow();
     S.sync.ready=true;
     await sset(K.sync,JSON.stringify(S.sync));
     await saveTexts();
-    if(!quiet) toast("Отправлено: "+countsText(counts(syncPayload())),4000);
-  }catch(e){ toast("Не отправилось: "+e.message,6000); }
+    if(changed&&(changed.added||changed.updated||changed.removed)) renderAll();
+    if(!quiet) toast("Отправлено: "+countsText(counts(syncPayload()))+
+      (withCards?" и "+S.cards.length+" карточек":""),4000);
+  }catch(e){ syncFail("Не отправилось",e,quiet); }
+  finally{ syncBusy=false; if(syncQueued){ syncQueued=false; syncSoon(); } }
 }
 async function syncPull(quiet){
   if(!S.sync.token||!S.sync.gist){ if(!quiet) toast("Нужны токен и адрес хранилища"); return; }
+  if(syncBusy){ if(!quiet) toast("Уже синхронизирую, секунду"); return; }
+  syncBusy=true;
   try{
-    var r=await remoteRead();
-    if(!r){ if(!quiet) toast("Хранилище пустое — отправьте с того устройства, где есть тексты",5000); return; }
-    var res=syncMerge(r);
+    var r=await remoteAll();
+    if(!r||(!r.texts&&!r.cards)){ if(!quiet) toast("Хранилище пустое — отправьте с того устройства, где есть тексты",5000); return; }
+    var t=r.texts?mergeTexts(r.texts):{added:0,updated:0,removed:0};
+    var cm=r.cards?mergeRemoteCards(r.cards):{added:0,updated:0};
     S.sync.ready=true;
     await sset(K.sync,JSON.stringify(S.sync));
-    await saveTexts(); renderAll();
-    if(!quiet) toast("В хранилище: "+countsText(counts(r))+". Новых "+res.added+", обновлено "+res.updated,5000);
-  }catch(e){ if(!quiet) toast("Не забралось: "+e.message,6000); }
+    if(cm.added||cm.updated) await saveAll(); else await saveTexts();
+    renderAll();
+    if(!quiet){
+      var m="Забрал: текстов новых "+t.added+", обновлено "+t.updated+(t.removed?", убрано "+t.removed:"");
+      if(cm.added||cm.updated) m+="; карточек новых "+cm.added+(cm.updated?", обновлено "+cm.updated:"");
+      if(!S.cards.length) m+=". Карточек нет ни здесь, ни в хранилище — киньте сюда card_summary.csv";
+      toast(m,7000);
+    }
+  }catch(e){ syncFail("Не забралось",e,quiet); }
+  finally{ syncBusy=false; }
 }
 async function syncCheck(){
+  if(!S.sync.token||!S.sync.gist){ toast("Нужны токен и адрес хранилища"); return; }
+  if(syncBusy){ toast("Уже синхронизирую, секунду"); return; }
+  syncBusy=true;
   try{
-    var r=await remoteRead();
-    if(!r){ toast("Хранилище пустое или файла в нём нет",4000); return; }
-    toast("В хранилище: "+countsText(counts(r))+", обновлено "+new Date(r.at||Date.now()).toISOString().slice(0,16).replace("T"," "),6000);
-  }catch(e){ toast("Не проверилось: "+e.message,6000); }
+    var r=await remoteAll();
+    if(!r||(!r.texts&&!r.cards)){ toast("Хранилище пустое или файлов в нём нет",4000); return; }
+    var m=r.texts?("В хранилище: "+countsText(counts(r.texts))):"Текстов в хранилище нет";
+    m+=r.cards?(", карточек "+((r.cards.cards||[]).length)):", карточек нет";
+    if(r.texts&&r.texts.at) m+=", обновлено "+new Date(r.texts.at).toISOString().slice(0,16).replace("T"," ");
+    toast(m,7000);
+  }catch(e){ syncFail("Не проверилось",e,false); }
+  finally{ syncBusy=false; }
 }
 function openSync(){
+  var here=counts(syncPayload());
   openModal("Синхронизация между устройствами",
-    "Разборы и заметки лежат в вашем секретном gist на GitHub. Карточки не передаются — только ваши тексты. На новом устройстве сначала «Забрать», потом уже включайте автоотправку.",
+    "Разборы, заметки и сама колода лежат в вашем секретном gist на GitHub. Словари не передаются. На новом устройстве сначала «Забрать», потом уже включайте автоотправку.",
     '<div class="fgrid">'+
       '<div class="f"><label>токен GitHub (права: gist)</label>'+
         '<textarea rows="1" id="syncTok" placeholder="ghp_…">'+esc(S.sync.token||"")+'</textarea></div>'+
       '<div class="f"><label>адрес хранилища — создастся сам при первой отправке</label>'+
         '<textarea rows="1" id="syncGist" placeholder="пусто">'+esc(S.sync.gist||"")+'</textarea></div>'+
     '</div>'+
-    '<label class="btn ghost" style="display:inline-block"><input type="checkbox" id="syncAuto"'+(S.sync.auto?" checked":"")+'> отправлять автоматически</label>'+
+    '<div class="acts">'+
+      '<label class="btn ghost"><input type="checkbox" id="syncAuto"'+(S.sync.auto?" checked":"")+'> отправлять автоматически</label>'+
+      '<label class="btn ghost"><input type="checkbox" id="syncCards"'+(S.sync.cards!==false?" checked":"")+'> передавать и карточки</label>'+
+    '</div>'+
     '<div class="acts"><button class="btn primary" id="syncDown">Забрать</button>'+
       '<button class="btn" id="syncUp">Отправить</button>'+
       '<button class="btn ghost" id="syncCheck">Что в хранилище</button>'+
       '<button class="btn ghost" id="syncSave">Сохранить настройки</button></div>'+
-    '<p class="note" style="margin-top:10px">На этом устройстве: '+countsText(counts(syncPayload()))+'</p>'+
-    '<p class="note" style="margin-top:10px">'+(S.sync.at?"последняя отправка: "+esc(S.sync.at):"ещё не синхронизировали")+'</p>'+
+    '<p class="note" style="margin-top:10px">На этом устройстве: '+S.cards.length+' карточек, '+countsText(here)+'</p>'+
+    '<p class="note">'+(S.sync.at?"последняя отправка: "+esc(S.sync.at):"ещё не синхронизировали")+'</p>'+
     '<p class="note">Токен создаётся на github.com → Settings → Developer settings → Tokens (classic) → отметить только gist. Он хранится на этом устройстве.</p>');
   var save=async function(){
-    S.sync.token=$("#syncTok").value.trim();
-    S.sync.gist=$("#syncGist").value.trim();
+    S.sync.token=$("#syncTok").value.replace(/\s+/g,"");
+    S.sync.gist=gistId($("#syncGist").value);
     S.sync.auto=$("#syncAuto").checked;
+    S.sync.cards=$("#syncCards").checked;
+    $("#syncGist").value=S.sync.gist;
     await sset(K.sync,JSON.stringify(S.sync));
   };
-  $("#syncSave").onclick=async function(){ await save(); toast("Настройки сохранены"); };
-  $("#syncUp").onclick=async function(){ await save(); await syncPush(false); closeModal(); };
-  $("#syncDown").onclick=async function(){ await save(); await syncPull(false); closeModal(); };
+  $("#syncSave").onclick=async function(){
+    await save();
+    toast(S.sync.auto&&!S.sync.ready ? "Настройки сохранены. Автоотправка включится после первого «Забрать» или «Отправить»"
+                                     : "Настройки сохранены",5000);
+  };
+  $("#syncUp").onclick=async function(){ await save(); closeModal(); await syncPush(false); };
+  $("#syncDown").onclick=async function(){ await save(); closeModal(); await syncPull(false); };
   $("#syncCheck").onclick=async function(){ await save(); await syncCheck(); };
 }
 
@@ -1267,11 +1448,12 @@ function openMenu(){
     if(m==="task") openTask();
     if(m==="cid") copyCid();
     if(m==="bulk") bulkDone();
-    if(m==="forget"){ S.sent={}; S.lastTask=null; saveSoon(); closeModal(); renderList();
+    if(m==="forget"){ Object.keys(S.sent).forEach(function(id){ touch(id,"sent"); });
+      S.sent={}; S.lastTask=null; saveSoon(); closeModal(); renderList();
       toast("Отметки о выгрузке сброшены"); }
     if(m==="texts"){ exportTexts(); closeModal(); }
-    if(m==="backup"){ download("anki_backup.json",JSON.stringify({v:5,edits:S.edits,status:S.status,notes:S.notes,
-      etym:S.etym,story:S.story,sent:S.sent,lastTask:S.lastTask,mtime:S.mtime,imports:S.imports},null,1),"application/json"); closeModal(); }
+    if(m==="backup"){ download("anki_backup.json",JSON.stringify({v:6,edits:S.edits,status:S.status,notes:S.notes,
+      etym:S.etym,story:S.story,sent:S.sent,lastTask:S.lastTask,mtime:S.mtime,mtimes:S.mtimes,imports:S.imports},null,1),"application/json"); closeModal(); }
     if(m==="restore") $("#impBackup").click();
     if(m==="sync") openSync();
     if(m==="help") openHelp();
@@ -1349,7 +1531,7 @@ document.addEventListener("keydown",function(e){
     var c=S._vis[S.cursor]; if(c){ S.open=S.open===c.id?null:c.id; renderList(); } return; }
   if(e.key==="d"&&S.cursor>=0){ e.preventDefault();
     var t=S._vis[S.cursor]; if(!t) return;
-    if(S.status[t.id]==="done") delete S.status[t.id]; else S.status[t.id]="done";
+    if(S.status[t.id]==="done") delete S.status[t.id]; else S.status[t.id]="done"; touch(t.id,"status");
     saveSoon(); renderHead(); renderChips(); renderList(); }
 });
 
