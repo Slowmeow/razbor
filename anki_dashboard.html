@@ -1148,29 +1148,56 @@ $("#impBackup").addEventListener("change",function(e){
 
 /* ---------- синхронизация между устройствами (секретный gist на GitHub) ---------- */
 var SYNCFILE="anki-dashboard.json";          // ваши тексты
-var CARDFILE="anki-dashboard-cards.json";    // сама колода без словарей: иначе на новом
-                                             // устройстве тексты некуда положить и экран пустой
-var CARD_FIELD_MAX=240, CARDS_MAX=3.6*1024*1024;
+var CARDPREFIX="anki-dashboard-cards";       // колода: -01.json, -02.json, …
+                                             // без неё на новом устройстве тексты некуда положить
+var CARD_FIELD_MAX=240, DICT_SYNC_MAX=900, PART_MAX=700*1024, PARTS_MAX=40;
 
 function syncPayload(){
   return { v:7, at:Date.now(), edits:S.edits, status:S.status, notes:S.notes,
            etym:S.etym, story:S.story, sent:S.sent, lastTask:S.lastTask,
            mtime:S.mtime, mtimes:S.mtimes };
 }
-function cardPayload(lean){
-  var cards=S.cards.map(function(c){
-    var f=[];
-    for(var i=0;i<c.f.length;i++){
-      var x=c.f[i];
-      if(x.dict) continue;              // словари остаются на устройстве, они и есть весь вес
-      if(i>0&&!x.ed) continue;          // первое поле — само слово, его берём всегда
-      if(lean&&f.length>=3) break;
-      f.push({ key:x.key, label:x.label, ed:!!x.ed, v:String(x.v||"").slice(0,CARD_FIELD_MAX) });
+function partName(n){ return CARDPREFIX+"-"+("0"+n).slice(-2)+".json"; }
+function cardOne(c,dicts,lean){
+  var f=[];
+  for(var i=0;i<c.f.length;i++){
+    var x=c.f[i];
+    if(x.dict){
+      if(!dicts) continue;
+      f.push({ key:x.key, label:x.label, ed:false, dict:true, v:String(x.v||"").slice(0,DICT_SYNC_MAX) });
+      continue;
     }
-    return { id:c.id, note:c.note, deck:c.deck, n:c.n, a:c.a, rate:c.rate, t:c.t,
-             last:c.last, first:c.first, ivl:c.ivl, added:c.added, f:f };
+    if(i>0&&!x.ed) continue;            // первое поле — само слово, его берём всегда
+    if(lean&&f.length>=3) continue;
+    f.push({ key:x.key, label:x.label, ed:!!x.ed, v:String(x.v||"").slice(0,CARD_FIELD_MAX) });
+  }
+  return { id:c.id, note:c.note, deck:c.deck, n:c.n, a:c.a, rate:c.rate, t:c.t,
+           last:c.last, first:c.first, ivl:c.ivl, added:c.added, f:f };
+}
+/* Колода режется на куски: в один файл гиста всю её класть незачем,
+   а кусками влезает колода любого размера. */
+function cardParts(dicts,lean){
+  var at=S.cardsAt||Date.now(), groups=[], cur=[], size=0;
+  for(var i=0;i<S.cards.length;i++){
+    var o=cardOne(S.cards[i],dicts,lean), s=JSON.stringify(o).length+1;
+    if(cur.length&&size+s>PART_MAX){ groups.push(cur); cur=[]; size=0; }
+    cur.push(o); size+=s;
+  }
+  if(cur.length) groups.push(cur);
+  return groups.map(function(part,i){
+    return JSON.stringify({ v:2, at:at, part:i+1, parts:groups.length, n:part.length,
+                            deck:S.deck||null, imports:S.imports.slice(0,5), cards:part });
   });
-  return { v:1, at:S.cardsAt||Date.now(), n:cards.length, deck:S.deck||null, cards:cards };
+}
+/* прикидка веса по первой сотне — чтобы показать её в окне, не собирая всё целиком */
+function deckWeight(dicts){
+  var n=Math.min(S.cards.length,100), sum=0;
+  for(var i=0;i<n;i++) sum+=JSON.stringify(cardOne(S.cards[i],dicts,false)).length;
+  if(!n) return 0;
+  return Math.round(sum/n*S.cards.length);
+}
+function weightText(b){
+  return b>=1048576 ? (b/1048576).toFixed(1).replace(".",",")+" МБ" : Math.round(b/1024)+" КБ";
 }
 
 /* Отметки времени. lastLocal/lastRemote — точное время правки этого поля,
@@ -1245,7 +1272,11 @@ function mergeRemoteCards(rc){
       if(!have) e.f.push(nc.f[j]);
     }
   }
-  if(fresh){ S.cardsAt=rc.at||Date.now(); if(rc.deck&&!S.deck) S.deck=rc.deck; }
+  if(fresh){
+    S.cardsAt=rc.at||Date.now();
+    if(rc.deck&&!S.deck) S.deck=rc.deck;
+    if(rc.imports&&rc.imports.length&&!S.imports.length) S.imports=rc.imports;
+  }
   if(added||updated) buildIndex();
   return { added:added, updated:updated };
 }
@@ -1294,10 +1325,24 @@ async function remoteFile(g,name){
   }
   try{ return JSON.parse(text); }catch(e){ throw new Error("в хранилище испорченный "+name); }
 }
+/* колода лежит кусками — собираем её обратно; заодно понимаем старый одиночный файл */
+async function remoteCards(g){
+  var names=Object.keys(g.files||{}).filter(function(n){ return n.indexOf(CARDPREFIX)===0; }).sort();
+  if(!names.length) return null;
+  var head=null, cards=[];
+  for(var i=0;i<names.length;i++){
+    var j=await remoteFile(g,names[i]); if(!j) continue;
+    if(!head||(j.at||0)>(head.at||0)) head=j;
+    cards=cards.concat(j.cards||[]);
+  }
+  if(!head) return null;
+  return { v:head.v, at:head.at, deck:head.deck, imports:head.imports, parts:names.length, cards:cards };
+}
 async function remoteAll(){                 // null — хранилища нет
   if(!S.sync.gist) return null;
   var g=await gist("GET","/gists/"+S.sync.gist);
-  return { texts:await remoteFile(g,SYNCFILE), cards:await remoteFile(g,CARDFILE) };
+  return { texts:await remoteFile(g,SYNCFILE), cards:await remoteCards(g),
+           names:Object.keys(g.files||{}) };
 }
 function syncFail(what,e,quiet){
   console.warn("sync:",e);
@@ -1316,13 +1361,14 @@ async function syncPush(quiet){
   if(!S.sync.token){ if(!quiet) toast("Сначала укажите токен"); return; }
   if(syncBusy){ if(quiet) syncQueued=true; else toast("Уже синхронизирую, секунду"); return; }
   syncBusy=true;
-  var withCards=false;
+  var withCards=0;
   try{
-    var changed=null;
+    var changed=null, had=[];
     if(S.sync.gist){
       try{
         var r=await remoteAll();
         if(r&&r.texts) changed=mergeTexts(r.texts);
+        if(r&&r.names) had=r.names.filter(function(n){ return n.indexOf(CARDPREFIX)===0; });
       }catch(e){
         if(e.status===404){ S.sync.gist=""; toast("Прежнее хранилище не нашлось, создаю новое",5000); }
         else{ syncFail("Не сверился с хранилищем, отправку отменил",e,quiet); return; }
@@ -1330,10 +1376,16 @@ async function syncPush(quiet){
     }
     var files={}; files[SYNCFILE]={ content:JSON.stringify(syncPayload()) };
     if(S.sync.cards!==false&&S.cards.length){
-      var cp=JSON.stringify(cardPayload(false));
-      if(cp.length>CARDS_MAX) cp=JSON.stringify(cardPayload(true));
-      if(cp.length>CARDS_MAX){ if(!quiet) toast("Колода великовата для хранилища — отправил только тексты",6000); }
-      else { files[CARDFILE]={ content:cp }; withCards=true; }
+      var parts=cardParts(S.sync.dicts===true,false);
+      if(parts.length>PARTS_MAX) parts=cardParts(false,false);       // без словарей
+      if(parts.length>PARTS_MAX) parts=cardParts(false,true);        // и без длинных полей
+      if(parts.length>PARTS_MAX){
+        if(!quiet) toast("Колода великовата даже кусками — отправил только тексты",6000);
+      }else{
+        parts.forEach(function(txt,i){ files[partName(i+1)]={ content:txt }; });
+        had.forEach(function(n){ if(!files[n]) files[n]=null; });    // лишние куски убираем
+        withCards=parts.length;
+      }
     }
     if(S.sync.gist) await gist("PATCH","/gists/"+S.sync.gist,{files:files});
     else{
@@ -1346,7 +1398,7 @@ async function syncPush(quiet){
     await saveTexts();
     if(changed&&(changed.added||changed.updated||changed.removed)) renderAll();
     if(!quiet) toast("Отправлено: "+countsText(counts(syncPayload()))+
-      (withCards?" и "+S.cards.length+" карточек":""),4000);
+      (withCards?" и "+S.cards.length+" карточек"+(S.sync.dicts===true?" со словарями":""):""),4000);
   }catch(e){ syncFail("Не отправилось",e,quiet); }
   finally{ syncBusy=false; if(syncQueued){ syncQueued=false; syncSoon(); } }
 }
@@ -1389,7 +1441,7 @@ async function syncCheck(){
 function openSync(){
   var here=counts(syncPayload());
   openModal("Синхронизация между устройствами",
-    "Разборы, заметки и сама колода лежат в вашем секретном gist на GitHub. Словари не передаются. На новом устройстве сначала «Забрать», потом уже включайте автоотправку.",
+    "Разборы, заметки, отметки и сама колода со статистикой лежат в вашем секретном gist на GitHub. На новом устройстве сначала «Забрать», потом уже включайте автоотправку.",
     '<div class="fgrid">'+
       '<div class="f"><label>токен GitHub (права: gist)</label>'+
         '<textarea rows="1" id="syncTok" placeholder="ghp_…">'+esc(S.sync.token||"")+'</textarea></div>'+
@@ -1399,7 +1451,9 @@ function openSync(){
     '<div class="acts">'+
       '<label class="btn ghost"><input type="checkbox" id="syncAuto"'+(S.sync.auto?" checked":"")+'> отправлять автоматически</label>'+
       '<label class="btn ghost"><input type="checkbox" id="syncCards"'+(S.sync.cards!==false?" checked":"")+'> передавать и карточки</label>'+
+      '<label class="btn ghost"><input type="checkbox" id="syncDicts"'+(S.sync.dicts===true?" checked":"")+'> и словари тоже</label>'+
     '</div>'+
+    '<p class="note" id="syncWeight" style="margin-top:8px"></p>'+
     '<div class="acts"><button class="btn primary" id="syncDown">Забрать</button>'+
       '<button class="btn" id="syncUp">Отправить</button>'+
       '<button class="btn ghost" id="syncCheck">Что в хранилище</button>'+
@@ -1407,14 +1461,25 @@ function openSync(){
     '<p class="note" style="margin-top:10px">На этом устройстве: '+S.cards.length+' карточек, '+countsText(here)+'</p>'+
     '<p class="note">'+(S.sync.at?"последняя отправка: "+esc(S.sync.at):"ещё не синхронизировали")+'</p>'+
     '<p class="note">Токен создаётся на github.com → Settings → Developer settings → Tokens (classic) → отметить только gist. Он хранится на этом устройстве.</p>');
+  var weigh=function(){
+    var el=$("#syncWeight"); if(!el) return;
+    if(!S.cards.length||!$("#syncCards").checked){ el.textContent="Колода не передаётся — уедут только тексты."; return; }
+    el.textContent="Колода уедет весом примерно "+weightText(deckWeight($("#syncDicts").checked))+
+      ($("#syncDicts").checked?". Словари делают обмен тяжелее, зато на новом устройстве сразу всё."
+                              :". Словари останутся здесь — их вернёт свежий card_summary.csv.");
+  };
   var save=async function(){
     S.sync.token=$("#syncTok").value.replace(/\s+/g,"");
     S.sync.gist=gistId($("#syncGist").value);
     S.sync.auto=$("#syncAuto").checked;
     S.sync.cards=$("#syncCards").checked;
+    S.sync.dicts=$("#syncDicts").checked;
     $("#syncGist").value=S.sync.gist;
     await sset(K.sync,JSON.stringify(S.sync));
   };
+  $("#syncCards").onchange=weigh;
+  $("#syncDicts").onchange=weigh;
+  weigh();
   $("#syncSave").onclick=async function(){
     await save();
     toast(S.sync.auto&&!S.sync.ready ? "Настройки сохранены. Автоотправка включится после первого «Забрать» или «Отправить»"
