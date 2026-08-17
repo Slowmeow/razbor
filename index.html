@@ -1,0 +1,1331 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Разбор колоды</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#101312">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Разбор колоды">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{
+  --paper:#F1F0EC; --panel:#FFFFFF; --ink:#15181A; --ink2:#474C4F; --ink3:#767C7E;
+  --rule:#D8D6CF; --hard:#A3271C; --mid:#9B6512; --soft:#7A6A45; --easy:#2F6146; --accent:#54339B;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --jp:"Hiragino Kaku Gothic ProN","Yu Gothic","Noto Sans JP","Meiryo",system-ui,sans-serif;
+  --ui:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#101312; --panel:#1B201E; --ink:#F2F1EB; --ink2:#C3C8C4; --ink3:#949B97;
+    --rule:#333937; --hard:#F08375; --mid:#EDB863; --soft:#D2BC85; --easy:#84CFA0; --accent:#B49CF5;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#101312; --panel:#1B201E; --ink:#F2F1EB; --ink2:#C3C8C4; --ink3:#949B97;
+  --rule:#333937; --hard:#F08375; --mid:#EDB863; --soft:#D2BC85; --easy:#84CFA0; --accent:#B49CF5;
+}
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);min-height:100%}
+body{font-family:var(--ui);line-height:1.45;-webkit-text-size-adjust:100%}
+#root{max-width:940px;margin:0 auto;padding:20px 18px 80px}
+h1{margin:0;font-size:19px;font-weight:650;letter-spacing:-.01em}
+p{margin:0}
+.note{font-size:12px;color:var(--ink3)}
+
+.top{display:flex;justify-content:space-between;align-items:center;gap:14px;padding-bottom:12px;border-bottom:2px solid var(--ink)}
+.brand{display:flex;gap:11px;align-items:center;min-width:0}
+.mark{font-family:var(--jp);font-size:22px;line-height:1;width:38px;height:38px;display:grid;place-items:center;
+      border:1.5px solid var(--ink);border-radius:2px;flex:none}
+.sub{font-family:var(--mono);font-size:11px;color:var(--ink3);margin-top:2px;
+     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tools{display:flex;gap:6px;flex:none}
+.iconbtn{border:1px solid var(--rule);background:var(--panel);color:var(--ink2);border-radius:3px;
+         width:34px;height:34px;font-size:15px;cursor:pointer;line-height:1}
+.iconbtn:hover{border-color:var(--ink2)}
+
+.intake{margin-top:20px}
+.drop{border:1.5px dashed var(--rule);border-radius:4px;padding:30px 20px;text-align:center;background:var(--panel)}
+.drop.over{border-color:var(--ink)}
+.dropTitle{font-size:16px;font-weight:600;margin-bottom:10px}
+.dropHint{font-size:12.5px;color:var(--ink2);margin-bottom:18px;line-height:1.6}
+.progress{font-family:var(--mono);font-size:12px;color:var(--ink2);margin-top:12px;min-height:16px}
+
+.btn{display:inline-block;font:inherit;font-size:13px;padding:8px 14px;border-radius:3px;border:1px solid var(--rule);
+     background:var(--panel);color:var(--ink);cursor:pointer;text-align:center}
+.btn:hover{border-color:var(--ink2)}
+.btn.primary{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.btn.ghost{font-size:12.5px;padding:7px 12px}
+.btn.danger:hover{border-color:var(--hard);color:var(--hard)}
+.btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,.chip:focus-visible,.row:focus-visible,
+summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.controls{margin-top:18px;display:flex;flex-direction:column;gap:10px}
+.line1{display:flex;gap:8px}
+#q{flex:1;font:inherit;font-size:14px;padding:9px 11px;border:1px solid var(--rule);border-radius:3px;background:var(--panel);color:var(--ink)}
+#sort{font:inherit;font-size:13px;padding:9px;border:1px solid var(--rule);border-radius:3px;background:var(--panel);color:var(--ink)}
+.line2{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.chip{font:inherit;font-size:12px;padding:5px 11px;border-radius:20px;border:1px solid var(--rule);background:transparent;
+      color:var(--ink2);cursor:pointer;white-space:nowrap}
+.chip:hover{border-color:var(--ink2)}
+.chip.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.chip .n{font-family:var(--mono);font-size:10.5px;opacity:.7;margin-left:5px}
+.chip.reset{border-style:dashed;color:var(--ink3)}
+.line3{display:flex;gap:8px;align-items:center}
+.count{font-family:var(--mono);font-size:12px;color:var(--ink3)}
+.spacer{flex:1}
+
+#list{margin-top:6px;border-top:1px solid var(--rule)}
+.row{display:grid;grid-template-columns:3px 22px 1fr auto;gap:10px;align-items:center;width:100%;padding:11px 4px 11px 0;
+     border:0;border-bottom:1px solid var(--rule);background:none;cursor:pointer;text-align:left;font:inherit;color:inherit}
+.row:hover{background:var(--panel)}
+.row.cursor{background:var(--panel);box-shadow:inset 3px 0 0 var(--accent)}
+.bar{align-self:stretch;border-radius:2px;background:var(--c);min-height:32px}
+.tier{font-family:var(--mono);font-size:14px;font-weight:600;color:var(--c);text-align:center}
+.term{font-family:var(--jp);font-size:17px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.read{font-size:12.5px;color:var(--ink3);font-family:var(--jp)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--accent);display:inline-block;flex:none}
+.check{color:var(--easy);font-size:12px}
+.nums{font-family:var(--mono);font-size:11px;color:var(--ink3);text-align:right;line-height:1.5;white-space:nowrap}
+.nums b{font-size:15px;color:var(--c);display:block;font-weight:600}
+
+.editor{padding:8px 0 16px 14px;border-bottom:1px solid var(--rule);background:var(--panel)}
+.fgrid{display:flex;flex-direction:column;gap:10px;margin:10px 0}
+.f label{display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;
+         color:var(--ink3);margin-bottom:3px}
+.f textarea{width:100%;font-family:var(--jp);font-size:14px;padding:8px 9px;border:1px solid var(--rule);border-radius:3px;
+            background:var(--paper);color:var(--ink);resize:vertical;min-height:38px;line-height:1.45}
+.f textarea.changed{border-color:var(--easy);border-left-width:3px}
+.f.mine label{color:var(--mid)} .f.mine textarea{border-color:var(--mid);border-left-width:3px;font-family:var(--ui)}
+.f.long textarea{border-color:var(--accent);border-left-width:3px;font-family:var(--serif);font-size:15px;line-height:1.6;min-height:96px}
+.f.long label{color:var(--accent)}
+.fold{margin-top:8px;border:1px solid var(--rule);border-radius:3px;background:var(--paper)}
+.fold>summary{cursor:pointer;padding:9px 12px;font-family:var(--mono);font-size:11px;letter-spacing:.04em;
+              text-transform:uppercase;color:var(--ink3);list-style:none}
+.fold>summary::-webkit-details-marker{display:none}
+.fold>summary::before{content:"▸ ";color:var(--ink3)}
+.fold[open]>summary::before{content:"▾ "}
+.fold[open]>summary{color:var(--ink2);border-bottom:1px solid var(--rule)}
+.fold .body{padding:12px;font-family:var(--jp);font-size:14px;line-height:1.65;color:var(--ink2);
+            max-height:360px;overflow:auto;white-space:pre-wrap}
+.fold .body.prose{font-family:var(--serif);font-size:16px;line-height:1.75;color:var(--ink)}
+.fold .body.prose p{margin:0 0 11px} .fold .body.prose p:last-child{margin:0}
+.fold .body.prose strong{font-weight:700;color:var(--ink)}
+.fold .body.prose .jp{font-family:var(--jp);font-size:15.5px}
+.meta{display:flex;gap:14px;flex-wrap:wrap;font-family:var(--mono);font-size:11px;color:var(--ink3)}
+.simlist{display:flex;gap:6px;flex-wrap:wrap;padding:10px 12px}
+.simlist button{font:inherit;font-family:var(--jp);font-size:13px;padding:3px 9px;border:1px solid var(--rule);border-radius:3px;
+                background:var(--panel);color:var(--ink);cursor:pointer}
+.simlist .why{font-family:var(--mono);font-size:10px;color:var(--ink3);margin-left:5px}
+.acts{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px}
+.acts .grow{flex:1}
+
+.more{text-align:center;padding:18px}
+.empty{padding:44px 10px;text-align:center;color:var(--ink3);font-size:13.5px}
+
+.modal{position:fixed;inset:0;background:rgba(8,10,9,.6);display:grid;place-items:center;padding:18px;z-index:50}
+.sheet{background:var(--paper);border:1px solid var(--rule);border-radius:4px;max-width:680px;width:100%;max-height:84vh;
+       overflow:auto;padding:18px}
+.sheetHead{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.sheetHead h3{margin:0;font-size:16px}
+.x{border:0;background:none;font-size:18px;cursor:pointer;color:var(--ink2);line-height:1}
+.menu{display:flex;flex-direction:column;gap:2px;margin-top:10px}
+.menu .item{display:block;width:100%;text-align:left;font:inherit;font-size:14px;padding:11px 12px;border:0;border-radius:3px;
+            background:none;color:var(--ink);cursor:pointer}
+.menu .item:hover{background:var(--panel)}
+.menu .item small{display:block;color:var(--ink3);font-size:11.5px;margin-top:1px}
+.menu .item.danger{color:var(--hard)}
+.menu hr{border:0;border-top:1px solid var(--rule);margin:6px 0}
+.chunk{margin-top:12px}
+.chunk textarea{width:100%;height:130px;font-family:var(--mono);font-size:11px;padding:8px;border:1px solid var(--rule);
+                border-radius:3px;background:var(--panel);color:var(--ink)}
+
+.drill{position:fixed;inset:0;background:var(--paper);z-index:60;display:flex;flex-direction:column}
+.drillTop{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--rule)}
+.drillTop .track{flex:1;height:4px;background:var(--rule);border-radius:3px;overflow:hidden}
+.drillTop .fill{height:100%;background:var(--accent)}
+.drillPos{font-family:var(--mono);font-size:12px;color:var(--ink3);white-space:nowrap}
+.drillBody{flex:1;overflow:auto;padding:26px 18px 20px;max-width:680px;margin:0 auto;width:100%}
+.drillWord{font-family:var(--jp);font-size:46px;line-height:1.15}
+.drillRead{font-family:var(--jp);font-size:17px;color:var(--ink3);margin-top:4px}
+.drillSent{font-family:var(--jp);font-size:17px;margin-top:16px;padding-left:12px;border-left:3px solid var(--rule)}
+.drillStats{display:flex;gap:14px;flex-wrap:wrap;font-family:var(--mono);font-size:11.5px;color:var(--ink3);margin-top:12px}
+.drillBottom{display:flex;gap:8px;padding:12px 14px;border-top:1px solid var(--rule);max-width:680px;margin:0 auto;width:100%;
+             padding-bottom:calc(12px + env(safe-area-inset-bottom))}
+.drillBottom .btn{flex:1}
+
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--paper);font-size:13px;
+       padding:10px 16px;border-radius:3px;z-index:70;max-width:88vw;text-align:center}
+.kbd{font-family:var(--mono);font-size:10.5px;border:1px solid var(--rule);border-bottom-width:2px;border-radius:3px;
+     padding:0 4px;color:var(--ink3)}
+
+@media (max-width:640px){
+  #root{padding:14px 12px 84px}
+  .controls{position:sticky;top:0;background:var(--paper);z-index:15;padding-bottom:8px;box-shadow:0 6px 8px -8px rgba(0,0,0,.4)}
+  .line2{overflow-x:auto;flex-wrap:nowrap;padding-bottom:4px}
+  .chip{flex:none;padding:7px 12px}
+  .row{grid-template-columns:3px 20px 1fr;gap:8px;padding:12px 2px}
+  .nums{grid-column:3;text-align:left;display:flex;gap:10px}
+  .nums b{display:inline}
+    .editor{padding-left:6px}
+  .f textarea{font-size:16px}
+  .drillWord{font-size:38px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none !important}}
+</style>
+</head>
+<body>
+<div id="root">
+<header class="top">
+  <div class="brand">
+    <span class="mark">見</span>
+    <div style="min-width:0">
+      <h1>Разбор колоды</h1>
+      <p class="sub" id="sub">карточки по числу провалов</p>
+    </div>
+  </div>
+  <div class="tools">
+    <button class="iconbtn" id="install" title="Установить приложение" hidden>⤓</button><button class="iconbtn" id="theme" title="Тема">◐</button>
+    <button class="iconbtn" id="menu" title="Ещё">⋯</button>
+  </div>
+</header>
+
+<section class="intake" id="intake">
+  <div class="drop" id="drop">
+    <p class="dropTitle">Перетащите сюда файлы</p>
+    <p class="dropHint"><b>card_summary.csv</b> из экспорта статистики Anki — это всё, что нужно.<br>
+      Свежий экспорт можно кидать сколько угодно раз: цифры обновятся, ваши тексты останутся.<br>
+      Сюда же кидайте ответ нейросети с разборами (JSON или CSV).</p>
+    <label class="btn primary">Выбрать файлы<input type="file" id="filein" multiple accept=".csv,.json,.tsv" hidden></label>
+    <p class="progress" id="progress"></p>
+  </div>
+</section>
+
+<section class="controls" id="controls" hidden>
+  <div class="line1">
+    <input type="search" id="q" placeholder="Поиск по словам и разборам">
+    <select id="sort">
+      <option value="again">по числу Again</option>
+      <option value="score">по сложности с поправкой на объём</option>
+      <option value="rate">по доле Again</option>
+      <option value="reviews">по числу повторов</option>
+      <option value="time">по времени ответа</option>
+      <option value="word">по алфавиту</option>
+    </select>
+  </div>
+  <div class="line2" id="chips">
+    <button class="chip" data-f="tierA">A</button>
+    <button class="chip" data-f="tierB">B</button>
+    <button class="chip" data-f="tierC">C</button>
+    <button class="chip" data-f="tierD">D</button>
+    <button class="chip" data-f="noetym">без разбора</button>
+    <button class="chip" data-f="todo">не проработаны</button>
+    <button class="chip reset" id="clearF">сброс</button>
+  </div>
+  <div class="line3">
+    <button class="btn primary" id="startDrill">Читать по одной</button>
+    <button class="btn" id="llmTask">Задание для нейросети</button>
+    <span class="spacer"></span>
+    <span class="count" id="count"></span>
+  </div>
+</section>
+
+<main id="list"></main>
+<div class="more" id="more"></div>
+</div>
+
+<div class="modal" id="modal" hidden>
+  <div class="sheet">
+    <div class="sheetHead"><h3 id="modalTitle"></h3><button class="x" id="modalX">✕</button></div>
+    <p class="note" id="modalNote"></p>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<div class="drill" id="drill" hidden>
+  <div class="drillTop">
+    <button class="btn ghost" id="drillExit">К списку</button>
+    <div class="track"><div class="fill" id="drillFill"></div></div>
+    <span class="drillPos" id="drillPos"></span>
+  </div>
+  <div class="drillBody" id="drillBody"></div>
+  <div class="drillBottom">
+    <button class="btn" id="drillPrev">←</button>
+    <button class="btn primary" id="drillDone">Проработал</button>
+    <button class="btn" id="drillNext">→</button>
+  </div>
+</div>
+
+<input type="file" id="fileinMenu" multiple accept=".csv,.json,.tsv" hidden>
+<input type="file" id="impBackup" accept=".json" hidden>
+<div class="toast" id="toast" hidden></div>
+
+<script src="papaparse.min.js"></script>
+<script>if(!window.Papa){var s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js";document.head.appendChild(s);}</script>
+<script>
+(function(){
+"use strict";
+
+/* ---------- хранилище: аккаунт Claude → IndexedDB → localStorage → память ---------- */
+var mem={}, MODE="memory", LS=null, IDB=null;
+try{ if(window.localStorage){ window.localStorage.setItem("__t","1"); window.localStorage.removeItem("__t"); LS=window.localStorage; } }catch(e){ LS=null; }
+
+function idbOpen(){
+  return new Promise(function(res,rej){
+    if(!window.indexedDB) return rej(new Error("нет IndexedDB"));
+    var rq=indexedDB.open("ankidash",1);
+    rq.onupgradeneeded=function(){ var db=rq.result;
+      if(!db.objectStoreNames.contains("kv")) db.createObjectStore("kv",{keyPath:"k"}); };
+    rq.onsuccess=function(){ res(rq.result); };
+    rq.onerror=function(){ rej(rq.error||new Error("IndexedDB недоступна")); };
+  });
+}
+function idbReq(mode,fn){
+  return new Promise(function(res,rej){
+    var tx=IDB.transaction("kv",mode), st=tx.objectStore("kv"), r=fn(st);
+    tx.oncomplete=function(){ res(r&&r.result); };
+    tx.onerror=function(){ rej(tx.error); };
+    tx.onabort=function(){ rej(tx.error); };
+  });
+}
+async function initStorage(){
+  if(window.storage&&window.storage.get){ MODE="app"; return; }
+  try{ IDB=await idbOpen(); MODE="idb"; await migrateFromLS(); return; }catch(e){ IDB=null; }
+  if(LS) MODE="local";
+}
+async function migrateFromLS(){
+  if(!LS) return;
+  var has=await idbReq("readonly",function(st){ return st.get("ankidash:meta"); });
+  if(has) return;
+  var moved=0;
+  for(var i=0;i<LS.length;i++){
+    var k=LS.key(i);
+    if(k.indexOf("ankidash:")!==0) continue;
+    await idbReq("readwrite",function(st){ return st.put({k:k,v:LS.getItem(k)}); });
+    moved++;
+  }
+  if(moved) console.info("перенесено из localStorage:",moved);
+}
+async function sget(k){ try{
+  if(MODE==="app"){ var r=await window.storage.get(k); return r?r.value:null; }
+  if(MODE==="idb"){ var o=await idbReq("readonly",function(st){ return st.get(k); }); return o?o.v:null; }
+  if(MODE==="local") return LS.getItem(k); }catch(e){} return mem[k]===undefined?null:mem[k]; }
+async function sset(k,v){ try{
+  if(MODE==="app"){ await window.storage.set(k,v); return true; }
+  if(MODE==="idb"){ await idbReq("readwrite",function(st){ return st.put({k:k,v:v}); }); return true; }
+  if(MODE==="local"){ LS.setItem(k,v); return true; } }catch(e){ return false; } mem[k]=v; return true; }
+async function sdel(k){ try{
+  if(MODE==="app"){ await window.storage.delete(k); return; }
+  if(MODE==="idb"){ await idbReq("readwrite",function(st){ return st.delete(k); }); return; }
+  if(MODE==="local"){ LS.removeItem(k); return; } }catch(e){} delete mem[k]; }
+async function slist(p){ try{
+  if(MODE==="app"){ var r=await window.storage.list(p); return r?r.keys.map(function(x){ return typeof x==="string"?x:x.key; }):[]; }
+  if(MODE==="idb"){ var ks=await idbReq("readonly",function(st){ return st.getAllKeys(); }); 
+    return (ks||[]).filter(function(k){ return String(k).indexOf(p)===0; }); }
+  if(MODE==="local"){ var o=[]; for(var i=0;i<LS.length;i++){ var k=LS.key(i); if(k.indexOf(p)===0) o.push(k); } return o; } }catch(e){}
+  return Object.keys(mem).filter(function(k){ return k.indexOf(p)===0; }); }
+
+var K={ meta:"ankidash:meta", cards:"ankidash:cards:", edits:"ankidash:edits",
+        status:"ankidash:status", notes:"ankidash:notes", etym:"ankidash:etym", story:"ankidash:story",
+        sent:"ankidash:sent", mtime:"ankidash:mtime", sync:"ankidash:sync" };
+
+/* ---------- состояние ---------- */
+var TIER={ A:12, B:8, C:4 };
+var S={ cards:[], edits:{}, status:{}, notes:{}, etym:{}, story:{}, sent:{}, lastTask:null, mtime:{}, sync:{}, imports:[], deck:null,
+        filters:{}, sort:"again", q:"", page:0, PAGE:60, open:null, cursor:-1,
+        theme:"auto", drill:null, _vis:[], _idx:{read:{},kanji:{}}, _byId:{} };
+var $=function(s){ return document.querySelector(s); };
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){
+  return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+function toast(m,ms){ var t=$("#toast"); t.textContent=m; t.hidden=false;
+  clearTimeout(t._t); t._t=setTimeout(function(){ t.hidden=true; }, ms||2400); }
+
+/* ---------- поля ---------- */
+var EDITABLE_MAX=400, PREVIEW_MAX=700, DICT_MAX=4000, STORE_DICT_MAX=900;
+function clean(v){
+  if(v==null) return "";
+  var s=String(v), i=s.indexOf(".yomitan-glossary");
+  if(i>0) s=s.slice(0,i);
+  return s.replace(/\[sound:[^\]]*\]/g,"").replace(/<[^>]+>/g," ").replace(/&nbsp;/g," ").replace(/\s+/g," ").trim();
+}
+/* --- разбор словарных статей ---
+   Экспорт Anki вырезал HTML, и пункты словаря склеились. Но структура восстановима:
+   [1] [2] — номера значений, 。 — конец японского примера, дальше перевод. */
+var POS=["usually written using kana alone","adverbial noun","auxiliary verb","pre-noun adjectival","suru verb",
+ "onomatopoeic","abbreviation","interjection","conjunction","intransitive","na-adjective","no-adjective","i-adjective",
+ "colloquial","expression","adjective","transitive","irregular","obsolete","numeric","particle","pronoun","archaic",
+ "ichidan","adverb","prefix","suffix","godan","na-adj","no-adj","adj-na","adj-no","adj-i","i-adj","noun","5-dan","1-dan","suru"];
+POS.sort(function(a,b){ return b.length-a.length; });
+var POSRE=new RegExp("("+POS.join("|")+")","gi");
+var SEP="\u0001";
+function splitGlosses(g){
+  return g.replace(POSRE,function(m){ return SEP+m+SEP; })
+          .replace(/([a-zA-Z\)\]])(to [a-z])/g,"$1"+SEP+"$2")
+          .replace(/([a-z\)\]])([A-Z])/g,"$1"+SEP+"$2")
+          .split(SEP).map(function(x){ return x.trim(); }).filter(Boolean).join(" · ");
+}
+function tidyEn(s){
+  return s.replace(/(Note|See also)([a-z\u3040-\u30FF\u4E00-\u9FFF])/g,"$1: $2")
+          .replace(/([a-z\)\]!\?\.])([A-Z])/g,"$1 $2").trim();
+}
+function formatEn(s){
+  var src="", m=s.match(/^\([^)]*\)\s*/); if(m){ src=m[0].trim(); s=s.slice(m[0].length); }
+  s=s.replace(/(JMdict|Tatoeba|JMnedict)(\s*\|\s*(JMdict|Tatoeba|JMnedict))*\s*(\[\d+\])*\s*$/,"");
+  var blocks=s.split(/\[\d+\]/), out=[], n=0;
+  blocks.forEach(function(b){
+    b=b.trim(); if(!b) return;
+    var i=b.search(/[\u3040-\u30FF\u4E00-\u9FFF]/);
+    var gl=(i<0?b:b.slice(0,i)).trim(), rest=(i<0?"":b.slice(i)).trim(), jp="", en="";
+    if(rest){ var k=rest.lastIndexOf("。");
+      if(k>=0){ jp=rest.slice(0,k+1); en=rest.slice(k+1).trim(); } else jp=rest; }
+    if(!gl && !jp) return;
+    n++;
+    var line=n+". "+splitGlosses(gl);
+    if(jp) line+="\n    "+tidyEn(jp);
+    if(en) line+="\n    "+tidyEn(en);
+    out.push(line);
+  });
+  return (out.join("\n")||splitGlosses(s))+(src?"\n\n"+src:"");
+}
+function formatJp(s){
+  var src="", m=s.match(/^\([^)]*\)\s*/); if(m){ src=m[0].trim(); s=s.slice(m[0].length); }
+  return s.replace(/(【[^】]*】)/g,"$1\n")
+          .replace(/。/g,"。\n")
+          .replace(/(［[^］]*］)/g,"\n$1 ")
+          .replace(/(例文\d+件|使い方|語法|注意|Image)/g,"\n$1 ")
+          .replace(/」「/g,"」\n「")
+          .replace(/\n{2,}/g,"\n").trim()+(src?"\n\n"+src:"");
+}
+function guessLabel(samples){
+  var s=""; for(var i=0;i<samples.length;i++){ if(samples[i]){ s=samples[i]; break; } }
+  if(!s) return "";
+  if(/^[\u3040-\u309F\u30A0-\u30FFー\s]+$/.test(s)) return "чтение";
+  if(/^\[?\d+\]?$/.test(s)) return "число";
+  if(/^(heiban|atamadaka|nakadaka|odaka|kifuku)/i.test(s)) return "акцент";
+  if(/JMdict|Jitendex|Tatoeba|JMnedict/i.test(s)) return "словарь EN";
+  if(/【|】|辞典|大辞|明鏡|新明解|広辞苑/.test(s)) return "словарь JP";
+  if(/(BCCWJ|JPDB|freq)/i.test(s)) return "частотность";
+  if(/(File \d|\.mp4|\.mkv|VidTube)/i.test(s)) return "источник";
+  if(/\[[^\]]+\]/.test(s)) return s.length<24?"слово + фуригана":"пример + фуригана";
+  if(/^[\u4E00-\u9FFF\u3040-\u30FF]{1,10}$/.test(s)) return "слово";
+  if(/[。！？…]/.test(s) || s.length>25) return "пример";
+  return "";
+}
+function isDict(l){ return l==="словарь EN"||l==="словарь JP"; }
+
+/* ---------- колонки ---------- */
+function pick(cols,names){
+  for(var i=0;i<names.length;i++){ var n=names[i];
+    for(var j=0;j<cols.length;j++) if(String(cols[j]).toLowerCase().replace(/^\ufeff/,"").trim()===n) return cols[j]; }
+  return null;
+}
+function detect(cols){
+  var c=cols.map(function(x){ return String(x).toLowerCase().replace(/^\ufeff/,"").trim(); });
+  if(pick(cols,["этимология","etymology","разбор","story","интересное","история"])) return "answer";
+  if(c.indexOf("ts_iso")>=0||c.indexOf("ts_ms")>=0) return "reviews";
+  if(c.indexOf("review_date")>=0&&c.indexOf("review_count")>=0) return "skip";
+  if(c.indexOf("difficulty_score")>=0||c.indexOf("leech_rule")>=0) return "skip";
+  if(c.indexOf("total_reviews")>=0||(c.indexOf("card_id")>=0&&c.indexOf("again_count")>=0)) return "cards";
+  if(c.indexOf("deck_name")>=0&&c.indexOf("review_count")>=0) return "deck";
+  if(pick(cols,["retention","retention_rate","lapses","errors","again_count"])) return "cards";
+  return "unknown";
+}
+function buildCards(rows,cols){
+  var cId=pick(cols,["card_id","cid","id"]), cNote=pick(cols,["note_id","nid","note"]),
+      cDeck=pick(cols,["deck_name","deck"]), cRev=pick(cols,["total_reviews","reviews","reps","review_count"]),
+      cAg=pick(cols,["again_count","lapses","errors"]), cRate=pick(cols,["again_rate","lapse_rate"]),
+      cRet=pick(cols,["retention","retention_rate","success_rate"]),
+      cTime=pick(cols,["average_review_time_ms","avg_time_ms","review_time_ms","avg_time"]),
+      cLast=pick(cols,["last_review_date","last_review","last"]), cFirst=pick(cols,["first_review_date","first_review"]),
+      cIvl=pick(cols,["latest_interval","interval","ivl"]);
+  var known={}; [cId,cNote,cDeck,cRev,cAg,cRate,cRet,cTime,cLast,cFirst,cIvl,"deck_id"].forEach(function(x){ if(x) known[x]=1; });
+  var fcols=cols.filter(function(x){ return x && !known[x]; });
+  var samples={}; fcols.forEach(function(f){ samples[f]=[]; });
+  for(var i=0;i<Math.min(rows.length,30);i++) fcols.forEach(function(f){ samples[f].push(clean(rows[i][f])); });
+  var labels={}; fcols.forEach(function(f){ labels[f]=guessLabel(samples[f]); });
+  var out=[];
+  for(var r=0;r<rows.length;r++){
+    var row=rows[r], id=String(row[cId]!=null?row[cId]:("row"+r));
+    var n=parseFloat(row[cRev]); if(!isFinite(n)) n=0;
+    var a=parseFloat(row[cAg]);
+    if(!isFinite(a)){ var rt=parseFloat(row[cRate]);
+      if(!isFinite(rt)&&cRet!=null){ var rr=parseFloat(row[cRet]); if(isFinite(rr)) rt=rr>1?1-rr/100:1-rr; }
+      a=isFinite(rt)?Math.round(rt*n):0; }
+    var t=parseFloat(row[cTime]); if(!isFinite(t)) t=0;
+    var fields=[];
+    for(var k=0;k<fcols.length;k++){
+      var lab=labels[fcols[k]], raw=clean(row[fcols[k]]);
+      if(!raw) continue;
+      if(isDict(lab)) fields.push({ key:fcols[k], label:lab, ed:false, dict:true,
+        v: lab==="словарь EN" ? formatEn(raw.slice(0,DICT_MAX)) : formatJp(raw.slice(0,DICT_MAX)) });
+      else { var ed=raw.length<=EDITABLE_MAX;
+        fields.push({ key:fcols[k], label:lab, ed:ed, v: ed?raw:raw.slice(0,PREVIEW_MAX) }); }
+    }
+    out.push({ id:id, note:String(row[cNote]!=null?row[cNote]:id), deck:row[cDeck]||"", n:n, a:a, rate:n?a/n:0, t:t,
+      last:(row[cLast]||"").slice(0,10), first:(row[cFirst]||"").slice(0,10), ivl:parseFloat(row[cIvl])||0, f:fields });
+  }
+  return out;
+}
+
+/* ---------- важность ---------- */
+function tierOf(c){ return c.a>=TIER.A?"A":(c.a>=TIER.B?"B":(c.a>=TIER.C?"C":"D")); }
+function colorOf(c){ var t=tierOf(c); return t==="A"?"var(--hard)":(t==="B"?"var(--mid)":(t==="C"?"var(--soft)":"var(--easy)")); }
+function score(c){ return (c.a+1.5)/(c.n+5); }
+
+/* ---------- файлы ---------- */
+function parseFile(file,onProgress){
+  return new Promise(function(res,rej){
+    if(/\.json$/i.test(file.name)){
+      var fr=new FileReader();
+      fr.onload=function(){ try{ var j=JSON.parse(fr.result);
+        var rows=Array.isArray(j)?j:(j.cards||j.rows||j.data||j.items||[]);
+        res({ rows:rows, cols: rows.length?Object.keys(rows[0]):[] }); }catch(e){ rej(e); } };
+      fr.onerror=function(){ rej(new Error("файл не читается")); };
+      fr.readAsText(file); return;
+    }
+    var rows=[],cols=null,seen=0;
+    Papa.parse(file,{ header:true, skipEmptyLines:true, chunkSize:1024*1024*2,
+      transformHeader:function(h){ return String(h).replace(/^\ufeff/,"").trim(); },
+      chunk:function(r){ if(!cols) cols=r.meta.fields||[];
+        for(var i=0;i<r.data.length;i++) rows.push(r.data[i]);
+        seen+=r.data.length; if(onProgress) onProgress(file.name+": "+seen.toLocaleString("ru-RU")+" строк"); },
+      complete:function(){ res({ rows:rows, cols:cols||[] }); },
+      error:function(e){ rej(e); } });
+  });
+}
+function mergeCards(inc,stamp){
+  var idx={},i; for(i=0;i<S.cards.length;i++) idx[S.cards[i].id]=S.cards[i];
+  var added=0,moved=0;
+  for(i=0;i<inc.length;i++){
+    var nc=inc[i], e=idx[nc.id];
+    if(!e){ nc.added=stamp; nc.dn=0; S.cards.push(nc); idx[nc.id]=nc; added++; continue; }
+    var dn=nc.n-e.n;
+    if(dn>0){ e.dn=dn; e.da=Math.max(0,nc.a-e.a); moved++; }
+    e.n=nc.n; e.a=nc.a; e.rate=nc.rate; e.t=nc.t; e.ivl=nc.ivl;
+    e.last=nc.last||e.last; e.first=e.first||nc.first; e.deck=nc.deck||e.deck;
+    var byKey={}; for(var k=0;k<e.f.length;k++) byKey[e.f[k].key]=e.f[k];
+    for(var j=0;j<nc.f.length;j++){ var nf=nc.f[j], of=byKey[nf.key];
+      if(of){ of.v=nf.v; of.ed=nf.ed; of.dict=nf.dict; of.label=of.label||nf.label; } else e.f.push(nf); }
+  }
+  return { added:added, moved:moved };
+}
+function mergeAnswer(rows,cols){
+  var cE=pick(cols,["этимология","etymology","разбор"]), cS=pick(cols,["story","интересное","история","факт"]);
+  var cId=pick(cols,["card_id","cid","id"]), cNote=pick(cols,["note_id","nid"]), cW=pick(cols,["слово","word","expression","term"]);
+  var byId={},byNote={},byWord={};
+  S.cards.forEach(function(c){ byId[c.id]=c; byNote[c.note]=c; var w=mainText(c); if(w&&!byWord[w]) byWord[w]=c; });
+  var ok=0,miss=0;
+  rows.forEach(function(r){
+    var et=cE?String(r[cE]==null?"":r[cE]).trim():"", st=cS?String(r[cS]==null?"":r[cS]).trim():"";
+    if(!et && !st) return;
+    var c=(cId&&byId[String(r[cId]).trim()])||(cNote&&byNote[String(r[cNote]).trim()])||(cW&&byWord[String(r[cW]).trim()]);
+    if(!c){ miss++; return; }
+    if(et) S.etym[c.id]=et;
+    if(st) S.story[c.id]=st;
+    touch(c.id);
+    ok++;
+  });
+  return { ok:ok, miss:miss };
+}
+async function handleFiles(files){
+  var prog=$("#progress"), say=function(m){ prog.textContent=m; toast(m,4000); };
+  var cards=null, ans=null, deck=null;
+  for(var i=0;i<files.length;i++){
+    var f=files[i]; prog.textContent="Читаю "+f.name+"…";
+    try{
+      var p=await parseFile(f,function(m){ prog.textContent=m; });
+      var kind=detect(p.cols);
+      if(kind==="reviews"||kind==="skip"){ say(f.name+": этот файл не нужен, пропускаю"); continue; }
+      if(kind==="answer"){
+        if(!S.cards.length){ say("Сначала загрузите card_summary.csv"); continue; }
+        ans=mergeAnswer(p.rows,p.cols); continue;
+      }
+      if(kind==="cards"&&!cards) cards=p;
+      else if(kind==="deck") deck=p;
+      else say(f.name+": не понял формат");
+    }catch(e){ say(f.name+": не разобрать — "+e.message); }
+  }
+  if(deck&&deck.rows.length) S.deck=deck.rows[0];
+  if(cards){
+    prog.textContent="Сверяю с тем, что уже есть…";
+    var stamp=new Date().toISOString().slice(0,10);
+    var res=mergeCards(buildCards(cards.rows,cards.cols),stamp);
+    S.imports.unshift({ at:stamp, added:res.added, moved:res.moved });
+    S.imports=S.imports.slice(0,20);
+    buildIndex();
+    prog.textContent="Сохраняю…";
+    await saveAll();
+    say(res.added?("Новых: "+res.added+", обновлено: "+res.moved):("Обновлено: "+res.moved));
+    S.page=0;
+  }
+  if(ans){ buildIndex(); await saveAll(); say("Разборов добавлено: "+ans.ok+(ans.miss?", не нашёл карточку для "+ans.miss:"")); }
+  renderAll();
+}
+
+/* ---------- сохранение ---------- */
+var CHUNK=300;
+function meta(){ return { v:5, at:Date.now(), chunks:Math.ceil(S.cards.length/CHUNK), deck:S.deck,
+  imports:S.imports, theme:S.theme, sort:S.sort, lastTask:S.lastTask }; }
+async function saveMeta(){ return await sset(K.meta,JSON.stringify(meta())); }
+function pack(cards){ return cards.map(function(c){
+  var o={}; for(var k in c) if(k!=="f") o[k]=c[k];
+  o.f=c.f.map(function(f){ return f.dict?{key:f.key,label:f.label,ed:false,dict:true,v:f.v.slice(0,STORE_DICT_MAX)}:f; });
+  return o; }); }
+function slim(cards){ return cards.map(function(c){
+  var o={}; for(var k in c) if(k!=="f") o[k]=c[k];
+  o.f=c.f.filter(function(f){ return f.ed; }).map(function(f){ return {key:f.key,label:f.label,ed:true,v:f.v.slice(0,300)}; });
+  return o; }); }
+async function saveAll(){
+  var need=Math.ceil(S.cards.length/CHUNK), ok=true;
+  var old=await slist(K.cards);
+  for(var i=0;i<old.length;i++){ var num=parseInt(old[i].slice(K.cards.length),10);
+    if(!(num>=0&&num<need)) await sdel(old[i]); }
+  for(var c=0;c<need;c++){
+    var part=S.cards.slice(c*CHUNK,(c+1)*CHUNK);
+    var w=await sset(K.cards+c,JSON.stringify(pack(part)));
+    if(!w) w=await sset(K.cards+c,JSON.stringify(slim(part)));
+    if(!w) ok=false;
+  }
+  ok=(await saveMeta())&&ok;
+  await sset(K.edits,JSON.stringify(S.edits));
+  await sset(K.status,JSON.stringify(S.status));
+  await sset(K.notes,JSON.stringify(S.notes));
+  await sset(K.etym,JSON.stringify(S.etym));
+  await sset(K.story,JSON.stringify(S.story));
+  await sset(K.sent,JSON.stringify(S.sent));
+  await sset(K.mtime,JSON.stringify(S.mtime));
+  if(!ok) toast("Хранилище переполнено: словари не сохранены, тексты на месте",5000);
+  return ok;
+}
+var saveT=null;
+function touch(id){ S.mtime[id]=Date.now(); }
+function saveSoon(){ clearTimeout(saveT); saveT=setTimeout(async function(){
+  await sset(K.edits,JSON.stringify(S.edits)); await sset(K.status,JSON.stringify(S.status));
+  await sset(K.notes,JSON.stringify(S.notes)); await sset(K.etym,JSON.stringify(S.etym));
+  await sset(K.story,JSON.stringify(S.story)); await sset(K.sent,JSON.stringify(S.sent));
+  await sset(K.mtime,JSON.stringify(S.mtime)); await saveMeta();
+  if(S.sync.auto&&S.sync.token) syncPush(true); },700); }
+async function loadAll(){
+  var m=await sget(K.meta); if(!m) return false;
+  try{ m=JSON.parse(m); }catch(e){ return false; }
+  S.deck=m.deck||null; S.imports=m.imports||[]; S.theme=m.theme||"auto"; if(m.sort) S.sort=m.sort; S.lastTask=m.lastTask||null;
+  var arr=[];
+  for(var c=0;c<(m.chunks||0);c++){ var s=await sget(K.cards+c); if(s){ try{ arr=arr.concat(JSON.parse(s)); }catch(e){} } }
+  S.cards=arr;
+  var e=await sget(K.edits); if(e) try{ S.edits=JSON.parse(e); }catch(x){}
+  var st=await sget(K.status); if(st) try{ S.status=JSON.parse(st); }catch(x){}
+  var nt=await sget(K.notes); if(nt) try{ S.notes=JSON.parse(nt); }catch(x){}
+  var et=await sget(K.etym); if(et) try{ S.etym=JSON.parse(et); }catch(x){}
+  var so=await sget(K.story); if(so) try{ S.story=JSON.parse(so); }catch(x){}
+  var sn=await sget(K.sent); if(sn) try{ S.sent=JSON.parse(sn); }catch(x){}
+  var mt=await sget(K.mtime); if(mt) try{ S.mtime=JSON.parse(mt); }catch(x){}
+  buildIndex();
+  return S.cards.length>0;
+}
+
+/* ---------- содержимое ---------- */
+function valOf(c,f){ var e=S.edits[c.note]; return (e&&e[f.key]!=null)?e[f.key]:f.v; }
+function isEdited(c){ var e=S.edits[c.note]; return !!(e&&Object.keys(e).length); }
+function setEdit(c,key,val,orig){
+  if(val===orig){ if(S.edits[c.note]){ delete S.edits[c.note][key];
+      if(!Object.keys(S.edits[c.note]).length) delete S.edits[c.note]; } }
+  else { if(!S.edits[c.note]) S.edits[c.note]={}; S.edits[c.note][key]=val; }
+  saveSoon();
+}
+function byLabel(c,l){ for(var i=0;i<c.f.length;i++) if(c.f[i].label===l) return valOf(c,c.f[i]); return ""; }
+function mainText(c){ return c.f.length?valOf(c,c.f[0]):""; }
+function exampleText(c){
+  var best="";
+  for(var i=1;i<c.f.length;i++){ var f=c.f[i]; if(f.dict) continue; var v=valOf(c,f);
+    if(f.label==="пример"&&(!best||v.length<best.length)) best=v; }
+  if(best) return best;
+  for(var j=1;j<c.f.length;j++){ var g=c.f[j]; if(g.dict) continue; var w=valOf(c,g);
+    if(w.length>12&&g.label!=="частотность") return w; }
+  return "";
+}
+function dictOf(c,w){ return byLabel(c,w==="en"?"словарь EN":"словарь JP"); }
+function etymOf(c){ return (S.etym[c.id]||"").trim(); }
+function storyOf(c){ return (S.story[c.id]||"").trim(); }
+
+/* текст разбора: абзацы, выделения **…**, пометки в начале абзаца, японский своим шрифтом */
+function prose(t){
+  var h=esc(t)
+    .replace(/\*\*([^*\n]+)\*\*/g,"<strong>$1</strong>")
+    .replace(/^([А-ЯЁA-Z][^:\n]{2,28}):(\s|$)/gm,"<strong>$1:</strong>$2")
+    .replace(/^\s*[-—•]\s+/gm,"— ")
+    .replace(/([\u3040-\u30FF\u4E00-\u9FFF][\u3040-\u30FF\u4E00-\u9FFF\u3005\u30FC]*)/g,'<span class="jp">$1</span>');
+  return h.split(/\n{2,}/).map(function(p){ return "<p>"+p.replace(/\n/g,"<br>")+"</p>"; }).join("");
+}
+
+/* ---------- похожие ---------- */
+function buildIndex(){
+  var R={},KJ={},BY={};
+  for(var i=0;i<S.cards.length;i++){
+    var c=S.cards[i], rd=byLabel(c,"чтение"), w=mainText(c);
+    BY[c.id]=c;
+    if(rd) (R[rd]=R[rd]||[]).push(c.id);
+    var kj=w.match(/[\u4E00-\u9FFF]/g)||[];
+    for(var k=0;k<kj.length;k++) (KJ[kj[k]]=KJ[kj[k]]||[]).push(c.id);
+    /* строка для поиска собирается один раз, а не на каждое нажатие клавиши */
+    var buf=[];
+    for(var j=0;j<c.f.length;j++){ var f=c.f[j];
+      buf.push(f.dict ? f.v.slice(0,400) : valOf(c,f)); }
+    c._s=buf.join(" ").toLowerCase();
+  }
+  S._idx={read:R,kanji:KJ}; S._byId=BY;
+}
+function reindexCard(c){
+  var buf=[];
+  for(var j=0;j<c.f.length;j++){ var f=c.f[j]; buf.push(f.dict?f.v.slice(0,400):valOf(c,f)); }
+  c._s=buf.join(" ").toLowerCase();
+}
+function similarOf(c){
+  var byId=S._byId, homo=[], kin=[], seen={}; seen[c.id]=1;
+  var rd=byLabel(c,"чтение");
+  if(rd) (S._idx.read[rd]||[]).forEach(function(id){
+    if(seen[id]||!byId[id]) return; seen[id]=1; homo.push({c:byId[id],why:"то же чтение"}); });
+  var kj=(mainText(c).match(/[\u4E00-\u9FFF]/g)||[]), sh={};
+  kj.forEach(function(ch){ (S._idx.kanji[ch]||[]).forEach(function(id){
+    if(seen[id]) return; if(!sh[id]) sh[id]={n:0,ch:ch}; sh[id].n++; }); });
+  Object.keys(sh).forEach(function(id){ var o=byId[id]; if(o&&o.a>=TIER.C) kin.push({c:o,why:sh[id].ch,n:sh[id].n}); });
+  kin.sort(function(a,b){ return (b.n-a.n)||(b.c.a-a.c.a); });
+  return homo.slice(0,4).concat(kin.slice(0,Math.max(0,5-Math.min(homo.length,4))));
+}
+
+/* ---------- выборка ---------- */
+var FILTERS={
+  tierA:function(c){ return c.a>=TIER.A; },
+  tierB:function(c){ return c.a>=TIER.B&&c.a<TIER.A; },
+  tierC:function(c){ return c.a>=TIER.C&&c.a<TIER.B; },
+  tierD:function(c){ return c.a<TIER.C; },
+  noetym:function(c){ return !etymOf(c); },
+  todo:function(c){ return S.status[c.id]!=="done"; }
+};
+var EXCL={ tierA:["tierB","tierC","tierD"], tierB:["tierA","tierC","tierD"], tierC:["tierA","tierB","tierD"], tierD:["tierA","tierB","tierC"] };
+function visible(){
+  var q=S.q.toLowerCase(), act=Object.keys(S.filters);
+  var res=S.cards.filter(function(c){
+    for(var i=0;i<act.length;i++) if(!FILTERS[act[i]](c)) return false;
+    if(q){
+      if((c._s||"").indexOf(q)>=0) return true;
+      if((S.notes[c.id]||"").toLowerCase().indexOf(q)>=0) return true;
+      if(etymOf(c).toLowerCase().indexOf(q)>=0||storyOf(c).toLowerCase().indexOf(q)>=0) return true;
+      return false;
+    }
+    return true;
+  });
+  if(S.sort==="word"){ res.sort(function(a,b){ return mainText(a).localeCompare(mainText(b),"ja"); }); return res; }
+  var key={ again:function(c){return c.a}, score:score, rate:function(c){return c.rate},
+            reviews:function(c){return c.n}, time:function(c){return c.t} }[S.sort];
+  res.sort(function(a,b){ var x=key(a),y=key(b); if(x===y) return b.a-a.a; return x<y?1:-1; });
+  return res;
+}
+
+/* ---------- рендер ---------- */
+function fmtTime(ms){ return ms?(ms/1000).toFixed(1).replace(".",",")+" с":"—"; }
+function renderHead(){
+  var done=0,et=0;
+  S.cards.forEach(function(c){ if(S.status[c.id]==="done") done++; if(etymOf(c)) et++; });
+  $("#sub").textContent = S.cards.length
+    ? (S.cards.length+" карточек · "+et+" с разбором · "+done+" проработано"+
+       (S.imports.length?" · данные от "+S.imports[0].at:"")+(MODE==="memory"?" · без сохранения":""))
+    : "карточки по числу провалов";
+}
+function renderChips(){
+  var cnt={}; Object.keys(FILTERS).forEach(function(k){ cnt[k]=0; });
+  S.cards.forEach(function(c){ Object.keys(FILTERS).forEach(function(k){ if(FILTERS[k](c)) cnt[k]++; }); });
+  document.querySelectorAll(".chip[data-f]").forEach(function(b){
+    var f=b.dataset.f;
+    if(!b.dataset.lab) b.dataset.lab=b.textContent;
+    b.innerHTML=esc(b.dataset.lab)+'<span class="n">'+cnt[f]+'</span>';
+    b.classList.toggle("on",!!S.filters[f]);
+  });
+}
+function rowHTML(c,i){
+  var col=colorOf(c), read=byLabel(c,"чтение");
+  return '<button class="row'+(i===S.cursor?" cursor":"")+'" data-i="'+i+'" style="--c:'+col+'">'+
+    '<span class="bar"></span><span class="tier">'+tierOf(c)+'</span>'+
+    '<span class="main"><span class="term">'+esc(mainText(c).slice(0,60))+
+      (read?'<span class="read">'+esc(read)+'</span>':"")+
+      (etymOf(c)?'<span class="dot" title="есть разбор"></span>':"")+
+      (S.status[c.id]==="done"?'<span class="check">✓</span>':"")+'</span></span>'+
+    '<span class="nums" style="--c:'+col+'"><b>'+c.a+'</b>Again из '+c.n+'<br>'+fmtTime(c.t)+'</span></button>';
+}
+function foldHTML(title,body,cls,open){
+  return '<details class="fold"'+(open?" open":"")+'><summary>'+esc(title)+'</summary>'+
+    '<div class="body'+(cls?" "+cls:"")+'">'+body+'</div></details>';
+}
+function dictFolds(c,openMain){
+  var jp=dictOf(c,"jp"), en=dictOf(c,"en"), h="";
+  if(jp) h+=foldHTML("словарь 国語 (JP→JP)",esc(jp),"",openMain);
+  if(en) h+=foldHTML("перевод (JP→EN)",esc(en),"",false);
+  return h;
+}
+function simFold(c){
+  var s=similarOf(c); if(!s.length) return "";
+  return '<details class="fold"><summary>похожие слова ('+s.length+')</summary><div class="simlist">'+
+    s.map(function(x){ return '<button data-go="'+esc(x.c.id)+'">'+esc(mainText(x.c))+
+      '<span class="why">'+esc(x.why)+'</span></button>'; }).join("")+'</div></details>';
+}
+function textFields(c){
+  return '<div class="f long"><label>разбор и происхождение</label><textarea rows="4" data-etym="1" '+
+      'placeholder="заполняет нейросеть — или вы сами">'+esc(etymOf(c))+'</textarea></div>'+
+    '<div class="f long"><label>интересное</label><textarea rows="3" data-story="1" '+
+      'placeholder="история слова, литература, культура">'+esc(storyOf(c))+'</textarea></div>'+
+    '<div class="f mine"><label>моя заметка</label><textarea rows="2" data-note="1" '+
+      'placeholder="почему путаю">'+esc(S.notes[c.id]||"")+'</textarea></div>';
+}
+function cardFields(c){
+  var main=[],serv=[];
+  c.f.forEach(function(f,idx){
+    if(f.dict) return;
+    var v=valOf(c,f), ch=v!==f.v, lab=(f.label?f.label+" · ":"")+f.key, html;
+    if(!f.ed) html='<div class="f"><label>'+esc(lab)+'</label><div class="fold"><div class="body">'+esc(v)+'…</div></div></div>';
+    else html='<div class="f"><label>'+esc(lab)+'</label><textarea rows="'+(v.length>60?3:1)+'" data-k="'+esc(f.key)+
+      '" data-i="'+idx+'"'+(ch?' class="changed"':"")+'>'+esc(v)+'</textarea></div>';
+    var isServ=(f.label==="число"||f.label==="частотность"||f.label==="акцент")||(f.label===""&&v.length<=12);
+    (isServ?serv:main).push(html);
+  });
+  return main.join("")+(serv.length?'<div class="fgrid">'+serv.join("")+'</div>':"");
+}
+function editorHTML(c){
+  var et=etymOf(c), st=storyOf(c);
+  return '<div class="editor" data-ed="'+esc(c.id)+'">'+
+    '<div class="meta"><span>важность '+tierOf(c)+'</span><span>'+c.a+' Again из '+c.n+' ('+Math.round(c.rate*100)+'%)</span>'+
+      '<span>'+fmtTime(c.t)+'</span><span>cid '+esc(c.id)+'</span>'+
+      (c.dn>0?'<span>+'+c.dn+' повт. с прошлого экспорта</span>':"")+
+      (S.sent[c.id]?'<span>выгружено '+esc(S.sent[c.id])+'</span>':"")+'</div>'+
+    (et?foldHTML("разбор и происхождение",prose(et),"prose",true):"")+
+    (st?foldHTML("интересное",prose(st),"prose",true):"")+
+    dictFolds(c,!et)+simFold(c)+
+    foldHTML("править тексты",'<div class="fgrid">'+textFields(c)+'</div>')+
+    foldHTML("поля карточки",'<div class="fgrid">'+cardFields(c)+'</div>')+
+    '<div class="acts">'+
+      '<button class="btn" data-act="done">'+(S.status[c.id]==="done"?"Снять отметку":"Проработал")+'</button>'+
+      '<button class="btn ghost" data-act="drill">Читать отсюда</button>'+
+      (isEdited(c)?'<button class="btn ghost" data-act="revert">Вернуть исходный текст</button>':"")+
+      '<span class="grow"></span><button class="btn ghost" data-act="close">Свернуть</button></div></div>';
+}
+function renderList(){
+  var v=visible(); S._vis=v;
+  var slice=v.slice(0,(S.page+1)*S.PAGE), html="";
+  for(var i=0;i<slice.length;i++){ html+=rowHTML(slice[i],i); if(S.open===slice[i].id) html+=editorHTML(slice[i]); }
+  $("#list").innerHTML=html||'<p class="empty">Ничего не подошло.</p>';
+  $("#count").textContent=v.length+" из "+S.cards.length;
+  $("#more").innerHTML=slice.length<v.length?'<button class="btn" id="moreBtn">Ещё '+Math.min(S.PAGE,v.length-slice.length)+'</button>':"";
+  var mb=$("#moreBtn"); if(mb) mb.onclick=function(){ S.page++; renderList(); };
+}
+function renderAll(){
+  $("#intake").hidden=S.cards.length>0;
+  $("#controls").hidden=!S.cards.length;
+  $("#sort").value=S.sort;
+  renderHead(); renderChips(); renderList();
+}
+
+/* ---------- чтение по одной ---------- */
+function startDrill(list,i){
+  if(!list.length){ toast("Список пуст"); return; }
+  S.drill={list:list,i:i||0}; $("#drill").hidden=false; document.body.style.overflow="hidden"; renderDrill();
+}
+function exitDrill(){ S.drill=null; $("#drill").hidden=true; document.body.style.overflow=""; renderAll(); }
+function renderDrill(){
+  var d=S.drill; if(!d) return;
+  if(d.i<0) d.i=0; if(d.i>=d.list.length) d.i=d.list.length-1;
+  var c=d.list[d.i], read=byLabel(c,"чтение"), ex=exampleText(c), et=etymOf(c), st=storyOf(c);
+  $("#drillPos").textContent=(d.i+1)+" / "+d.list.length;
+  $("#drillFill").style.width=((d.i+1)/d.list.length*100)+"%";
+  $("#drillBody").innerHTML=
+    '<div class="drillWord">'+esc(mainText(c))+'</div>'+
+    (read?'<div class="drillRead">'+esc(read)+'</div>':"")+
+    (ex?'<div class="drillSent">'+esc(ex)+'</div>':"")+
+    '<div class="drillStats"><span>важность '+tierOf(c)+'</span><span>'+c.a+' Again из '+c.n+'</span>'+
+      '<span>'+fmtTime(c.t)+'</span></div>'+
+    (et?foldHTML("разбор и происхождение",prose(et),"prose"):"")+
+    (st?foldHTML("интересное",prose(st),"prose"):"")+
+    (!et&&!st?'<p class="note" style="margin-top:16px">Разбора пока нет. Отберите такие карточки фильтром «без разбора» и выгрузите задание для нейросети.</p>':"")+
+    dictFolds(c,false)+simFold(c)+
+    foldHTML("править тексты",'<div class="fgrid">'+textFields(c)+'</div>')+
+    foldHTML("поля карточки",'<div class="fgrid">'+cardFields(c)+'</div>');
+  $("#drillDone").textContent=S.status[c.id]==="done"?"✓ отмечена":"Проработал";
+}
+function drillMove(step){
+  var d=S.drill; if(!d) return;
+  if(d.i+step<0){ toast("Начало списка"); return; }
+  if(d.i+step>=d.list.length){ toast("Список пройден"); exitDrill(); return; }
+  d.i+=step; renderDrill(); $("#drillBody").scrollTop=0;
+}
+
+/* ---------- события ---------- */
+$("#list").addEventListener("click",function(e){
+  var go=e.target.closest("[data-go]"); if(go){ jumpTo(go.dataset.go); return; }
+  if(e.target.closest(".editor")){
+    var btn=e.target.closest("[data-act]"); if(!btn) return;
+    var cid=btn.closest(".editor").dataset.ed;
+    var card=S.cards.filter(function(x){ return x.id===cid; })[0], act=btn.dataset.act;
+    if(act==="done"){ if(S.status[cid]==="done") delete S.status[cid]; else S.status[cid]="done"; touch(cid);
+      saveSoon(); renderHead(); renderChips(); renderList(); }
+    if(act==="revert"){ delete S.edits[card.note]; saveSoon(); renderList(); toast("Текст возвращён"); }
+    if(act==="drill"){ var pos=0; S._vis.forEach(function(x,i){ if(x.id===cid) pos=i; }); startDrill(S._vis,pos); }
+    if(act==="close"){ S.open=null; renderList(); }
+    return;
+  }
+  var row=e.target.closest(".row"); if(!row) return;
+  var c=S._vis[+row.dataset.i]; S.cursor=+row.dataset.i;
+  S.open=(S.open===c.id)?null:c.id; renderList();
+});
+function jumpTo(id){
+  S.open=id; S.q=""; $("#q").value="";
+  var pos=-1; S._vis.forEach(function(c,i){ if(c.id===id) pos=i; });
+  if(pos<0){ S.filters={}; renderChips(); renderList(); S._vis.forEach(function(c,i){ if(c.id===id) pos=i; }); }
+  if(pos>=0){ S.page=Math.floor(pos/S.PAGE); S.cursor=pos; }
+  renderList();
+  var el=document.querySelector('.editor[data-ed="'+id+'"]'); if(el) el.scrollIntoView({block:"center"});
+}
+function onEdit(e){
+  var host=e.target.closest(".editor");
+  var card=host?S.cards.filter(function(x){ return x.id===host.dataset.ed; })[0]:(S.drill?S.drill.list[S.drill.i]:null);
+  if(!card) return;
+  var t=e.target;
+  if(t.dataset.etym){ var v=t.value.trim(); if(v) S.etym[card.id]=v; else delete S.etym[card.id]; touch(card.id); saveSoon(); return; }
+  if(t.dataset.story){ var w=t.value.trim(); if(w) S.story[card.id]=w; else delete S.story[card.id]; touch(card.id); saveSoon(); return; }
+  if(t.dataset.note){ S.notes[card.id]=t.value; touch(card.id); saveSoon(); return; }
+  var ta=t.closest("textarea[data-k]"); if(!ta) return;
+  var f=card.f[+ta.dataset.i];
+  setEdit(card,f.key,ta.value,f.v);
+  reindexCard(card);
+  ta.classList.toggle("changed",ta.value!==f.v);
+}
+$("#list").addEventListener("input",onEdit);
+$("#drill").addEventListener("input",onEdit);
+$("#drill").addEventListener("click",function(e){
+  var go=e.target.closest("[data-go]"); if(!go) return;
+  var id=go.dataset.go,pos=-1;
+  S.drill.list.forEach(function(c,i){ if(c.id===id) pos=i; });
+  if(pos<0){ var c=S.cards.filter(function(x){ return x.id===id; })[0];
+    if(c){ S.drill.list.splice(S.drill.i+1,0,c); pos=S.drill.i+1; } }
+  if(pos>=0){ S.drill.i=pos; renderDrill(); $("#drillBody").scrollTop=0; }
+});
+$("#drillPrev").onclick=function(){ drillMove(-1); };
+$("#drillNext").onclick=function(){ drillMove(1); };
+$("#drillExit").onclick=exitDrill;
+$("#drillDone").onclick=function(){
+  var c=S.drill.list[S.drill.i];
+  if(S.status[c.id]==="done") delete S.status[c.id]; else S.status[c.id]="done"; touch(c.id);
+  saveSoon(); renderDrill(); setTimeout(function(){ drillMove(1); },180);
+};
+$("#startDrill").onclick=function(){ startDrill(visible(),0); };
+(function(){
+  var x0=null,y0=null,b=$("#drillBody");
+  b.addEventListener("touchstart",function(e){ x0=e.touches[0].clientX; y0=e.touches[0].clientY; },{passive:true});
+  b.addEventListener("touchend",function(e){
+    if(x0===null) return;
+    var dx=e.changedTouches[0].clientX-x0, dy=e.changedTouches[0].clientY-y0;
+    if(Math.abs(dx)>70&&Math.abs(dy)<60) drillMove(dx<0?1:-1);
+    x0=null; },{passive:true});
+})();
+
+var qT=null;
+$("#q").addEventListener("input",function(e){
+  var v=e.target.value;
+  clearTimeout(qT);
+  qT=setTimeout(function(){ S.q=v; S.page=0; S.cursor=-1; renderList(); }, 160);
+});
+$("#sort").addEventListener("change",function(e){ S.sort=e.target.value; S.page=0; saveMeta(); renderList(); });
+$("#chips").addEventListener("click",function(e){
+  var b=e.target.closest(".chip"); if(!b) return;
+  if(b.id==="clearF") S.filters={};
+  else{ var f=b.dataset.f;
+    if(S.filters[f]) delete S.filters[f];
+    else{ (EXCL[f]||[]).forEach(function(x){ delete S.filters[x]; }); S.filters[f]=1; } }
+  S.page=0; S.cursor=-1; renderChips(); renderList();
+});
+
+var drop=$("#drop");
+["dragenter","dragover"].forEach(function(ev){ drop.addEventListener(ev,function(e){ e.preventDefault(); drop.classList.add("over"); }); });
+["dragleave","drop"].forEach(function(ev){ drop.addEventListener(ev,function(e){ e.preventDefault(); drop.classList.remove("over"); }); });
+drop.addEventListener("drop",function(e){ if(e.dataTransfer.files.length) handleFiles(e.dataTransfer.files); });
+$("#filein").addEventListener("change",function(e){ if(e.target.files.length) handleFiles(e.target.files); });
+$("#fileinMenu").addEventListener("change",function(e){ if(e.target.files.length){ closeModal(); handleFiles(e.target.files); } });
+document.addEventListener("dragover",function(e){ if(S.cards.length) e.preventDefault(); });
+document.addEventListener("drop",function(e){
+  if(S.cards.length&&e.dataTransfer&&e.dataTransfer.files.length){ e.preventDefault(); handleFiles(e.dataTransfer.files); } });
+
+/* ---------- выгрузки ---------- */
+function copy(t){
+  if(navigator.clipboard&&navigator.clipboard.writeText)
+    navigator.clipboard.writeText(t).then(function(){ toast("Скопировано"); },function(){ toast("Скопируйте вручную"); });
+  else toast("Скопируйте вручную");
+}
+function download(name,text,type){
+  var b=new Blob(["\ufeff"+text],{type:(type||"text/csv")+";charset=utf-8"});
+  var u=URL.createObjectURL(b), a=document.createElement("a");
+  a.href=u; a.download=name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function(){ URL.revokeObjectURL(u); },900);
+}
+function csvCell(s){ s=String(s==null?"":s); return /[",\n;]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }
+
+var PROMPT =
+"Ниже JSON-массив японских слов из моей колоды Anki. Они отсортированы по важности: чем выше, тем чаще я проваливал карточку.\n\n"+
+"Для каждого объекта заполни два поля на русском языке.\n\n"+
+"\"etymology\" — разбор и происхождение:\n"+
+"1) по кандзи: значение каждого знака, какое чтение здесь используется (он или кун) и почему;\n"+
+"2) происхождение слова: канго (заимствование из китайского), ваго (исконно японское), гайрайго, васэй-эйго;\n"+
+"3) если есть — как менялось значение, и родственные слова с теми же корнями;\n"+
+"4) одно-два слова, с которыми его легко спутать, и чем они отличаются.\n"+
+"400–900 символов.\n\n"+
+"\"story\" — одна интересная правдивая запись про это слово. Что угодно, лишь бы это было любопытно и запоминалось:\n"+
+"появление слова в известной книге, стихе, фильме, песне, аниме; исторический эпизод или реалия, откуда оно пошло;\n"+
+"культурная или бытовая деталь; неожиданная связь с другим языком; спор лингвистов о нём.\n"+
+"Не пересказывай значение слова и не повторяй разбор из \"etymology\". 200–600 символов.\n\n"+
+"Правила:\n"+
+"- Только проверяемые факты. Если надёжных данных нет — так и напиши, не выдумывай.\n"+
+"- Народную этимологию помечай как народную.\n"+
+"- Если интересного действительно нет, напиши в \"story\" короткое «ничего примечательного» вместо выдумки.\n"+
+"- Не меняй \"card_id\", \"word\" и остальные поля, не переставляй и не добавляй объекты.\n"+
+"- Верни ровно тот же JSON-массив целиком.\n\n"+
+"Оформление текста внутри полей (важно, я это читаю с телефона):\n"+
+"- Дели на смысловые абзацы, между абзацами пустая строка (\\n\\n).\n"+
+"- Начинай абзац с короткой пометки и двоеточия: Кандзи: / Происхождение: / Значение: / Родственные: / Не путать:\n"+
+"- Ключевые слова, термины и сами японские слова оборачивай в двойные звёздочки: **канго**, **扱う**.\n"+
+"- Никаких заголовков решётками, таблиц и нумерованных списков.\n";
+
+function taskRows(list){
+  return list.map(function(c,i){
+    return { rank:i+1, importance:tierOf(c), again:c.a, reviews:c.n, card_id:c.id, note_id:c.note,
+      word:mainText(c), reading:byLabel(c,"чтение"), sentence:exampleText(c),
+      dict_jp:dictOf(c,"jp").slice(0,600), dict_en:dictOf(c,"en").slice(0,600),
+      etymology:"", story:"" };
+  });
+}
+function taskPool(withSent,withEtym){
+  return (S._vis||[]).filter(function(c){
+    if(!withEtym && etymOf(c)) return false;
+    if(!withSent && S.sent[c.id]) return false;
+    return true;
+  });
+}
+function markSent(list){
+  var today=new Date().toISOString().slice(0,10);
+  list.forEach(function(c){ S.sent[c.id]=today; touch(c.id); });
+  S.lastTask={ at:today, n:list.length, word:list.length?mainText(list[list.length-1]):"" };
+  saveSoon();
+}
+function openTask(){
+  var v=S._vis||[];
+  if(!v.length){ toast("Список пуст"); return; }
+  var haveEtym=0, haveSent=0;
+  v.forEach(function(c){ if(etymOf(c)) haveEtym++; else if(S.sent[c.id]) haveSent++; });
+  openModal("Задание для нейросети", v.length+" карточек в выборке",
+    '<p class="note" id="taskInfo"></p>'+
+    (S.lastTask?'<p class="note">Прошлая выгрузка: '+esc(S.lastTask.at)+', '+S.lastTask.n+' шт., последнее слово '+esc(S.lastTask.word)+'.</p>':"")+
+    '<div class="acts" style="margin-top:12px">'+
+      '<label class="btn ghost"><input type="checkbox" id="incSent"> уже выгруженные ('+haveSent+')</label>'+
+      '<label class="btn ghost"><input type="checkbox" id="incEtym"> уже с разбором ('+haveEtym+')</label>'+
+      '<label class="btn ghost">карточек <select id="taskN" style="margin-left:6px">'+
+        '<option value="50">50</option><option value="100" selected>100</option>'+
+        '<option value="300">300</option><option value="0">все</option></select></label>'+
+    '</div>'+
+    '<div class="acts"><button class="btn primary" id="taskJson">Скачать JSON</button>'+
+      '<button class="btn" id="taskCsv">CSV</button>'+
+      '<button class="btn ghost" id="taskPrompt">Копировать промпт</button></div>'+
+    '<div class="chunk"><textarea id="promptBox" readonly>'+esc(PROMPT)+'</textarea></div>');
+  var pool=function(){ return taskPool($("#incSent").checked,$("#incEtym").checked); };
+  var take=function(){ var n=+$("#taskN").value, p=pool(); return n?p.slice(0,n):p; };
+  var info=function(){
+    var p=pool(), t=take();
+    $("#taskInfo").textContent="Готово к выгрузке: "+p.length+". В файл попадёт: "+t.length+
+      ". Пропускаю уже выгруженные и те, где разбор есть.";
+  };
+  ["incSent","incEtym","taskN"].forEach(function(id){ $("#"+id).addEventListener("change",info); });
+  info();
+  $("#taskJson").onclick=function(){
+    var list=take(); if(!list.length){ toast("Нечего выгружать — всё уже сделано"); return; }
+    download("anki_task_"+list.length+".json",JSON.stringify(taskRows(list),null,1),"application/json");
+    markSent(list); info(); renderList();
+    toast("Выгружено "+list.length+", помечены как отправленные");
+  };
+  $("#taskCsv").onclick=function(){
+    var list=take(); if(!list.length){ toast("Нечего выгружать — всё уже сделано"); return; }
+    var rows=taskRows(list);
+    var cols=["rank","importance","again","reviews","card_id","note_id","word","reading","sentence","dict_jp","dict_en","etymology","story"];
+    var lines=[cols.join(",")];
+    rows.forEach(function(r){ lines.push(cols.map(function(k){ return csvCell(r[k]); }).join(",")); });
+    download("anki_task_"+rows.length+".csv",lines.join("\n"));
+    markSent(list); info(); renderList();
+    toast("Выгружено "+list.length+", помечены как отправленные");
+  };
+  $("#taskPrompt").onclick=function(){ copy(PROMPT); };
+}
+$("#llmTask").onclick=openTask;
+
+function exportTexts(){
+  var lines=[["note_id","card_id","слово","разбор","интересное","моя_заметка","статус"].join(",")], n=0;
+  S.cards.forEach(function(c){
+    var et=etymOf(c), st=storyOf(c), nt=(S.notes[c.id]||"").trim(), ed=isEdited(c);
+    if(!et&&!st&&!nt&&!ed) return;
+    n++;
+    lines.push([csvCell(c.note),csvCell(c.id),csvCell(mainText(c)),csvCell(et),csvCell(st),csvCell(nt),
+      S.status[c.id]==="done"?"проработана":""].join(","));
+  });
+  if(!n){ toast("Пока нечего выгружать"); return; }
+  download("anki_texts_"+new Date().toISOString().slice(0,10)+".csv",lines.join("\n"));
+  toast("Выгружено карточек: "+n);
+}
+function copyCid(){
+  var v=S._vis||[]; if(!v.length){ toast("Список пуст"); return; }
+  var ids=v.map(function(c){ return c.id; }), parts=[];
+  for(var i=0;i<ids.length;i+=400) parts.push("cid:"+ids.slice(i,i+400).join(","));
+  var body='<p class="note">Вставьте в строку поиска Anki (Browse).</p>';
+  parts.forEach(function(p,i){ body+='<div class="chunk"><textarea readonly>'+esc(p)+'</textarea>'+
+    '<button class="btn ghost" data-copy="'+i+'">Копировать часть '+(i+1)+'</button></div>'; });
+  openModal("Список карточек для Anki",v.length+" карточек",body);
+  $("#modalBody").onclick=function(e){ var b=e.target.closest("[data-copy]"); if(b) copy(parts[+b.dataset.copy]); };
+}
+function bulkDone(){
+  var v=S._vis||[]; if(!v.length){ toast("Список пуст"); return; }
+  var all=v.every(function(c){ return S.status[c.id]==="done"; });
+  v.forEach(function(c){ if(all) delete S.status[c.id]; else S.status[c.id]="done"; });
+  saveSoon(); closeModal(); renderHead(); renderChips(); renderList();
+  toast(all?"Отметки сняты":"Отмечено: "+v.length);
+}
+$("#impBackup").addEventListener("change",function(e){
+  var f=e.target.files[0]; if(!f) return;
+  var fr=new FileReader();
+  fr.onload=async function(){
+    try{ var j=JSON.parse(fr.result);
+      S.edits=j.edits||{}; S.status=j.status||{}; S.notes=j.notes||{}; S.etym=j.etym||{}; S.story=j.story||{}; S.sent=j.sent||{}; S.lastTask=j.lastTask||null; S.mtime=j.mtime||{};
+      if(j.imports) S.imports=j.imports;
+      await saveAll(); closeModal(); renderAll(); toast("Восстановлено");
+    }catch(x){ toast("Файл не читается"); } };
+  fr.readAsText(f);
+});
+
+
+/* ---------- синхронизация между устройствами (секретный gist на GitHub) ---------- */
+var SYNCFILE="anki-dashboard.json";
+function syncPayload(){
+  return { v:6, at:Date.now(), edits:S.edits, status:S.status, notes:S.notes,
+           etym:S.etym, story:S.story, sent:S.sent, lastTask:S.lastTask, mtime:S.mtime };
+}
+function newerWins(local,remote,id){
+  var lm=S.mtime[id]||0, rm=(remote.mtime&&remote.mtime[id])||0;
+  return rm>lm;
+}
+function syncMerge(r){
+  var added=0, updated=0;
+  ["etym","story","notes"].forEach(function(key){
+    var rm=r[key]||{};
+    Object.keys(rm).forEach(function(id){
+      var val=rm[id]; if(!val) return;
+      if(!S[key][id]){ S[key][id]=val; added++; }
+      else if(S[key][id]!==val && newerWins(S[key][id],r,id)){ S[key][id]=val; updated++; }
+    });
+  });
+  Object.keys(r.status||{}).forEach(function(id){ if(!S.status[id]) S.status[id]=r.status[id]; });
+  Object.keys(r.sent||{}).forEach(function(id){ if(!S.sent[id]) S.sent[id]=r.sent[id]; });
+  Object.keys(r.edits||{}).forEach(function(nid){ if(!S.edits[nid]) S.edits[nid]=r.edits[nid]; });
+  Object.keys(r.mtime||{}).forEach(function(id){ if((r.mtime[id]||0)>(S.mtime[id]||0)) S.mtime[id]=r.mtime[id]; });
+  if(r.lastTask&&(!S.lastTask||r.lastTask.at>S.lastTask.at)) S.lastTask=r.lastTask;
+  return { added:added, updated:updated };
+}
+async function gist(method,path,body){
+  var res=await fetch("https://api.github.com"+path,{
+    method:method,
+    headers:{ "Authorization":"Bearer "+S.sync.token, "Accept":"application/vnd.github+json",
+              "Content-Type":"application/json" },
+    body: body?JSON.stringify(body):undefined });
+  if(!res.ok) throw new Error("GitHub ответил "+res.status+(res.status===401?" — проверьте токен":""));
+  return await res.json();
+}
+async function syncPush(quiet){
+  if(!S.sync.token){ if(!quiet) toast("Сначала укажите токен"); return; }
+  try{
+    var files={}; files[SYNCFILE]={ content:JSON.stringify(syncPayload()) };
+    if(S.sync.gist){ await gist("PATCH","/gists/"+S.sync.gist,{files:files}); }
+    else{
+      var g=await gist("POST","/gists",{ description:"Разбор колоды — мои разборы", public:false, files:files });
+      S.sync.gist=g.id;
+    }
+    S.sync.at=new Date().toISOString().slice(0,16).replace("T"," ");
+    await sset(K.sync,JSON.stringify(S.sync));
+    if(!quiet) toast("Отправлено на сервер: "+S.sync.at);
+  }catch(e){ toast("Не отправилось: "+e.message,5000); }
+}
+async function syncPull(){
+  if(!S.sync.token||!S.sync.gist){ toast("Нужны токен и адрес хранилища"); return; }
+  try{
+    var g=await gist("GET","/gists/"+S.sync.gist);
+    var f=g.files&&g.files[SYNCFILE];
+    if(!f) throw new Error("в хранилище нет файла");
+    var text=f.truncated? await (await fetch(f.raw_url)).text() : f.content;
+    var res=syncMerge(JSON.parse(text));
+    await saveAll(); renderAll();
+    toast("Забрано: новых "+res.added+", обновлено "+res.updated);
+  }catch(e){ toast("Не забралось: "+e.message,5000); }
+}
+function openSync(){
+  openModal("Синхронизация между устройствами",
+    "Разборы и заметки лежат в вашем секретном gist на GitHub. Карточки не передаются — только ваши тексты.",
+    '<div class="fgrid">'+
+      '<div class="f"><label>токен GitHub (права: gist)</label>'+
+        '<textarea rows="1" id="syncTok" placeholder="ghp_…">'+esc(S.sync.token||"")+'</textarea></div>'+
+      '<div class="f"><label>адрес хранилища — создастся сам при первой отправке</label>'+
+        '<textarea rows="1" id="syncGist" placeholder="пусто">'+esc(S.sync.gist||"")+'</textarea></div>'+
+    '</div>'+
+    '<label class="btn ghost" style="display:inline-block"><input type="checkbox" id="syncAuto"'+(S.sync.auto?" checked":"")+'> отправлять автоматически</label>'+
+    '<div class="acts"><button class="btn primary" id="syncUp">Отправить</button>'+
+      '<button class="btn" id="syncDown">Забрать</button>'+
+      '<button class="btn ghost" id="syncSave">Сохранить настройки</button></div>'+
+    '<p class="note" style="margin-top:10px">'+(S.sync.at?"последняя отправка: "+esc(S.sync.at):"ещё не синхронизировали")+'</p>'+
+    '<p class="note">Токен создаётся на github.com → Settings → Developer settings → Tokens (classic) → отметить только gist. Он хранится на этом устройстве.</p>');
+  var save=async function(){
+    S.sync.token=$("#syncTok").value.trim();
+    S.sync.gist=$("#syncGist").value.trim();
+    S.sync.auto=$("#syncAuto").checked;
+    await sset(K.sync,JSON.stringify(S.sync));
+  };
+  $("#syncSave").onclick=async function(){ await save(); toast("Настройки сохранены"); };
+  $("#syncUp").onclick=async function(){ await save(); await syncPush(false); closeModal(); };
+  $("#syncDown").onclick=async function(){ await save(); await syncPull(); closeModal(); };
+}
+
+/* ---------- меню ---------- */
+function openMenu(){
+  openModal("Ещё", S.cards.length?(S.cards.length+" карточек в приложении"):"",
+    '<div class="menu">'+
+      '<button class="item" data-m="add">Добавить файл<small>новый экспорт или ответ нейросети</small></button>'+
+      '<button class="item" data-m="task">Задание для нейросети<small>по текущей выборке</small></button>'+
+      '<button class="item" data-m="cid">Список cid: для Anki<small>чтобы найти эти карточки в браузере Anki</small></button>'+
+      '<button class="item" data-m="bulk">Отметить всё видимое проработанным</button><button class="item" data-m="forget">Забыть, что уже выгружено<small>тогда эти слова снова попадут в задание</small></button>'+
+      '<hr>'+
+      '<button class="item" data-m="texts">Скачать разборы и заметки<small>CSV</small></button>'+
+      '<button class="item" data-m="sync">Синхронизация между устройствами<small>разборы и заметки на всех ваших устройствах</small></button><button class="item" data-m="backup">Резервная копия<small>JSON со всеми вашими текстами</small></button>'+
+      '<button class="item" data-m="restore">Восстановить из копии</button>'+
+      '<hr>'+
+      '<button class="item" data-m="help">Как пользоваться</button>'+
+      '<button class="item danger" data-m="wipe">Очистить всё</button>'+
+    '</div>');
+  $("#modalBody").onclick=function(e){
+    var b=e.target.closest("[data-m]"); if(!b) return;
+    var m=b.dataset.m;
+    if(m==="add") $("#fileinMenu").click();
+    if(m==="task") openTask();
+    if(m==="cid") copyCid();
+    if(m==="bulk") bulkDone();
+    if(m==="forget"){ S.sent={}; S.lastTask=null; saveSoon(); closeModal(); renderList();
+      toast("Отметки о выгрузке сброшены"); }
+    if(m==="texts"){ exportTexts(); closeModal(); }
+    if(m==="backup"){ download("anki_backup.json",JSON.stringify({v:5,edits:S.edits,status:S.status,notes:S.notes,
+      etym:S.etym,story:S.story,sent:S.sent,lastTask:S.lastTask,mtime:S.mtime,imports:S.imports},null,1),"application/json"); closeModal(); }
+    if(m==="restore") $("#impBackup").click();
+    if(m==="sync") openSync();
+    if(m==="help") openHelp();
+    if(m==="wipe") confirmWipe();
+  };
+}
+function openHelp(){
+  openModal("Как пользоваться","",
+    '<div style="font-size:13.5px;line-height:1.8">'+
+    '<p><b>Буквы слева</b> — сколько раз вы провалили карточку: <b>A</b> 12 и больше, <b>B</b> от 8 (с этого числа Anki считает карточку личем), <b>C</b> 4–7, <b>D</b> до трёх.</p>'+
+    '<p style="margin-top:8px"><b>Круг работы:</b> отобрать фильтром «без разбора» → «Задание для нейросети» → скачать JSON → отдать нейросети с промптом → её ответ перетащить обратно сюда → читать в режиме «Читать по одной».</p>'+
+    '<p style="margin-top:8px"><b>Клавиши:</b> <span class="kbd">/</span> поиск · <span class="kbd">j</span><span class="kbd">k</span> по списку · '+
+    '<span class="kbd">Enter</span> раскрыть · <span class="kbd">d</span> отметить · <span class="kbd">s</span> читать по одной · <span class="kbd">Esc</span> закрыть. '+
+    'В чтении: <span class="kbd">←</span><span class="kbd">→</span> или свайп.</p>'+
+    '<p class="note" style="margin-top:10px">Ваши тексты хранятся: '+
+    ({app:"в аккаунте Claude — список открывается и на телефоне",idb:"в базе этого устройства (IndexedDB), офлайн",local:"в этом браузере",memory:"нигде, только до перезагрузки"})[MODE]+
+    '. Новый экспорт статистики их не затирает.</p></div>');
+}
+function confirmWipe(){
+  openModal("Очистить всё?","Удалятся карточки, разборы и заметки. В Anki ничего не изменится.",
+    '<div class="acts"><button class="btn danger" id="wipeYes">Да, очистить</button>'+
+    '<button class="btn ghost" id="wipeNo">Отмена</button></div>');
+  $("#wipeYes").onclick=async function(){
+    var ks=await slist("ankidash:");
+    for(var i=0;i<ks.length;i++) await sdel(ks[i]);
+    S.cards=[]; S.edits={}; S.status={}; S.notes={}; S.etym={}; S.story={}; S.sent={}; S.lastTask=null; S.mtime={}; S.imports=[]; S.deck=null;
+    S.open=null; S.filters={};
+    closeModal(); renderAll(); $("#progress").textContent=""; toast("Очищено");
+  };
+  $("#wipeNo").onclick=closeModal;
+}
+$("#menu").onclick=openMenu;
+$("#theme").onclick=function(){
+  S.theme=S.theme==="auto"?"light":(S.theme==="light"?"dark":"auto");
+  applyTheme(); saveMeta(); toast("Тема: "+({auto:"как в системе",light:"светлая",dark:"тёмная"})[S.theme]);
+};
+function applyTheme(){
+  if(S.theme==="auto") document.documentElement.removeAttribute("data-theme");
+  else document.documentElement.setAttribute("data-theme",S.theme);
+}
+function openModal(t,n,b){ $("#modalTitle").textContent=t; $("#modalNote").textContent=n||"";
+  $("#modalBody").innerHTML=b||""; $("#modal").hidden=false; }
+function closeModal(){ $("#modal").hidden=true; $("#modalBody").onclick=null; }
+$("#modalX").onclick=closeModal;
+$("#modal").addEventListener("click",function(e){ if(e.target.id==="modal") closeModal(); });
+
+document.addEventListener("keydown",function(e){
+  var tag=(e.target.tagName||"").toLowerCase(), typing=(tag==="input"||tag==="textarea"||tag==="select");
+  if(e.key==="Escape"){
+    if(typing){ e.target.blur(); return; }
+    if(!$("#modal").hidden){ closeModal(); return; }
+    if(S.drill){ exitDrill(); return; }
+    if(S.open){ S.open=null; renderList(); }
+    return;
+  }
+  if(typing) return;
+  if(S.drill){
+    if(e.key==="ArrowRight"||e.key==="n"){ drillMove(1); e.preventDefault(); }
+    if(e.key==="ArrowLeft"||e.key==="p"){ drillMove(-1); e.preventDefault(); }
+    if(e.key==="d"){ $("#drillDone").click(); e.preventDefault(); }
+    return;
+  }
+  if(!S.cards.length) return;
+  if(e.key==="/"){ e.preventDefault(); $("#q").focus(); return; }
+  if(e.key==="s"){ e.preventDefault(); startDrill(visible(),0); return; }
+  if(e.key==="j"||e.key==="k"){
+    e.preventDefault();
+    S.cursor=Math.max(0,Math.min(S._vis.length-1,S.cursor+(e.key==="j"?1:-1)));
+    if(S.cursor>=(S.page+1)*S.PAGE) S.page++;
+    renderList();
+    var el=document.querySelector(".row.cursor"); if(el) el.scrollIntoView({block:"nearest"});
+    return;
+  }
+  if(e.key==="Enter"&&S.cursor>=0){ e.preventDefault();
+    var c=S._vis[S.cursor]; if(c){ S.open=S.open===c.id?null:c.id; renderList(); } return; }
+  if(e.key==="d"&&S.cursor>=0){ e.preventDefault();
+    var t=S._vis[S.cursor]; if(!t) return;
+    if(S.status[t.id]==="done") delete S.status[t.id]; else S.status[t.id]="done";
+    saveSoon(); renderHead(); renderChips(); renderList(); }
+});
+
+var deferredInstall=null;
+window.addEventListener("beforeinstallprompt",function(e){ e.preventDefault(); deferredInstall=e; $("#install").hidden=false; });
+$("#install").onclick=function(){
+  if(!deferredInstall){ toast("В этом браузере: меню → «Установить приложение» или «На экран Домой»",5000); return; }
+  deferredInstall.prompt(); deferredInstall=null; $("#install").hidden=true;
+};
+window.addEventListener("appinstalled",function(){ $("#install").hidden=true; toast("Установлено"); });
+
+(async function(){
+  await initStorage();
+  var sy=await sget(K.sync); if(sy) try{ S.sync=JSON.parse(sy); }catch(x){}
+  var ok=await loadAll();
+  applyTheme(); renderAll();
+  if(MODE==="memory") $("#progress").textContent="Хранилище недоступно: тексты будут жить только до перезагрузки.";
+  if(ok) toast("Загружено: "+S.cards.length+" карточек");
+  if(S.sync.auto&&S.sync.token&&S.sync.gist) syncPull();
+  if(navigator.serviceWorker && location.protocol!=="file:"){
+    navigator.serviceWorker.register("sw.js").catch(function(e){ console.warn("sw:",e); });
+  }
+})();
+})();
+</script>
+</body>
+</html>
