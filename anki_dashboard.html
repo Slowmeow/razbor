@@ -1154,10 +1154,18 @@ var CARDPREFIX="anki-dashboard-cards";       // колода: -01.json, -02.json
    для длинных полей при разборе csv, 900 — для словарной статьи в хранилище */
 var CARD_FIELD_MAX=PREVIEW_MAX, DICT_SYNC_MAX=STORE_DICT_MAX, PART_MAX=700*1024, PARTS_MAX=40;
 
+/* Колода лежит в отдельном гисте и уезжает только когда правда менялась.
+   Иначе каждая правка разбора тащила бы по сети всю колоду со словарями. */
+function deckAt(){ return S.cardsAt||0; }
+function deckSig(){
+  if(!S.cards.length) return "";
+  return [deckAt(), S.cards.length, S.sync.dicts!==false?"d":"n"].join("/");
+}
+function deckInfo(){ return S.sync.deck||{ gist:"", sig:"", at:0, n:0, parts:0 }; }
 function syncPayload(){
-  return { v:7, at:Date.now(), edits:S.edits, status:S.status, notes:S.notes,
+  return { v:8, at:Date.now(), edits:S.edits, status:S.status, notes:S.notes,
            etym:S.etym, story:S.story, sent:S.sent, lastTask:S.lastTask,
-           mtime:S.mtime, mtimes:S.mtimes };
+           mtime:S.mtime, mtimes:S.mtimes, deck:deckInfo() };
 }
 function partName(n){ return CARDPREFIX+"-"+("0"+n).slice(-2)+".json"; }
 function cardOne(c,dicts,lean){
@@ -1343,11 +1351,30 @@ async function remoteCards(g){
   if(!head) return null;
   return { v:head.v, at:head.at, deck:head.deck, imports:head.imports, parts:names.length, cards:cards };
 }
+/* Тексты — маленькие, их тянем при каждом обмене.
+   Колоду трогаем отдельно и только по надобности. */
 async function remoteAll(){                 // null — хранилища нет
   if(!S.sync.gist) return null;
   var g=await gist("GET","/gists/"+S.sync.gist);
-  return { texts:await remoteFile(g,SYNCFILE), cards:await remoteCards(g),
-           names:Object.keys(g.files||{}) };
+  var texts=await remoteFile(g,SYNCFILE);
+  var here=Object.keys(g.files||{}).filter(function(n){ return n.indexOf(CARDPREFIX)===0; });
+  return { texts:texts, names:Object.keys(g.files||{}), oldCardsHere:here,
+           /* колода из старого хранилища, где она лежала рядом с текстами */
+           legacy: here.length?await remoteCards(g):null };
+}
+async function remoteDeck(id){
+  if(!id) return null;
+  return await remoteCards(await gist("GET","/gists/"+id));
+}
+/* нужно ли вообще отправлять колоду: сравниваем с тем, что уже лежит */
+function deckNeedsPush(rd){
+  if(S.sync.cards===false||!S.cards.length) return false;
+  if(!rd||!rd.gist) return true;                       // в хранилище колоды нет
+  if(rd.sig===deckSig()) return false;                 // ровно то же самое
+  if(deckAt()>(rd.at||0)) return true;                 // у нас свежее выгрузка статистики
+  if(deckAt()<(rd.at||0)) return false;                // у них свежее — не трогаем
+  /* тот же экспорт: досылаем, только если у нас есть словари, а там их нет */
+  return S.sync.dicts!==false && String(rd.sig||"").slice(-1)!=="d";
 }
 function syncFail(what,e,quiet){
   console.warn("sync:",e);
@@ -1366,32 +1393,48 @@ async function syncPush(quiet){
   if(!S.sync.token){ if(!quiet) toast("Сначала укажите токен"); return; }
   if(syncBusy){ if(quiet) syncQueued=true; else toast("Уже синхронизирую, секунду"); return; }
   syncBusy=true;
-  var withCards=0;
+  var sentDeck=0;
   try{
-    var changed=null, had=[];
+    var changed=null, oldHere=[];
     if(S.sync.gist){
       try{
         var r=await remoteAll();
-        if(r&&r.texts) changed=mergeTexts(r.texts);
-        if(r&&r.names) had=r.names.filter(function(n){ return n.indexOf(CARDPREFIX)===0; });
+        if(r&&r.texts){
+          changed=mergeTexts(r.texts);
+          /* чужой указатель на колоду принимаем, если своего нет или их свежее */
+          var rd=r.texts.deck;
+          if(rd&&rd.gist&&(!deckInfo().gist||(rd.at||0)>(deckInfo().at||0))) S.sync.deck=rd;
+        }
+        if(r) oldHere=r.oldCardsHere||[];
       }catch(e){
         if(e.status===404){ S.sync.gist=""; toast("Прежнее хранилище не нашлось, создаю новое",5000); }
         else{ syncFail("Не сверился с хранилищем, отправку отменил",e,quiet); return; }
       }
     }
-    var files={}; files[SYNCFILE]={ content:JSON.stringify(syncPayload()) };
-    if(S.sync.cards!==false&&S.cards.length){
+    if(deckNeedsPush(deckInfo())){
       var parts=cardParts(S.sync.dicts!==false,false);
       if(parts.length>PARTS_MAX) parts=cardParts(false,false);       // без словарей
       if(parts.length>PARTS_MAX) parts=cardParts(false,true);        // и без длинных полей
       if(parts.length>PARTS_MAX){
         if(!quiet) toast("Колода великовата даже кусками — отправил только тексты",6000);
       }else{
-        parts.forEach(function(txt,i){ files[partName(i+1)]={ content:txt }; });
-        had.forEach(function(n){ if(!files[n]) files[n]=null; });    // лишние куски убираем
-        withCards=parts.length;
+        if(!quiet) toast("Отправляю колоду, это дольше обычного…",8000);
+        var df={}, was=deckInfo().parts||0;
+        parts.forEach(function(txt,i){ df[partName(i+1)]={ content:txt }; });
+        for(var k=parts.length+1;k<=was;k++) df[partName(k)]=null;   // лишние куски убираем
+        var dgist=deckInfo().gist, dg;
+        if(dgist) await gist("PATCH","/gists/"+dgist,{files:df});
+        else{
+          dg=await gist("POST","/gists",{ description:"Разбор колоды — колода", public:false, files:df });
+          dgist=dg.id;
+        }
+        S.sync.deck={ gist:dgist, sig:deckSig(), at:deckAt(), n:S.cards.length, parts:parts.length };
+        sentDeck=parts.length;
       }
     }
+    var files={}; files[SYNCFILE]={ content:JSON.stringify(syncPayload()) };
+    /* переезд со старого хранилища: колода теперь живёт отдельно */
+    oldHere.forEach(function(n){ files[n]=null; });
     if(S.sync.gist) await gist("PATCH","/gists/"+S.sync.gist,{files:files});
     else{
       var g=await gist("POST","/gists",{ description:"Разбор колоды — мои разборы", public:false, files:files });
@@ -1403,7 +1446,8 @@ async function syncPush(quiet){
     await saveTexts();
     if(changed&&(changed.added||changed.updated||changed.removed)) renderAll();
     if(!quiet) toast("Отправлено: "+countsText(counts(syncPayload()))+
-      (withCards?" и "+S.cards.length+" карточек"+(S.sync.dicts!==false?" со словарями":""):""),4000);
+      (sentDeck?" и колода, "+S.cards.length+" карточек"+(S.sync.dicts!==false?" со словарями":"")
+               :(S.cards.length?". Колода не менялась — не гонял её зря":"")),5000);
   }catch(e){ syncFail("Не отправилось",e,quiet); }
   finally{ syncBusy=false; if(syncQueued){ syncQueued=false; syncSoon(); } }
 }
@@ -1413,9 +1457,18 @@ async function syncPull(quiet){
   syncBusy=true;
   try{
     var r=await remoteAll();
-    if(!r||(!r.texts&&!r.cards)){ if(!quiet) toast("Хранилище пустое — отправьте с того устройства, где есть тексты",5000); return; }
+    if(!r||(!r.texts&&!r.legacy)){ if(!quiet) toast("Хранилище пустое — отправьте с того устройства, где есть тексты",5000); return; }
     var t=r.texts?mergeTexts(r.texts):{added:0,updated:0,removed:0};
-    var cm=r.cards?mergeRemoteCards(r.cards):{added:0,updated:0};
+    var rd=(r.texts&&r.texts.deck)||null, deck=r.legacy;
+    /* колоду тянем, только если она там другая, чем у нас: обычно этого не случается,
+       и обмен остаётся лёгким */
+    if(!deck&&rd&&rd.gist&&(rd.sig!==deckInfo().sig||!S.cards.length)){
+      if(!quiet) toast("Забираю колоду, это дольше обычного…",8000);
+      deck=await remoteDeck(rd.gist);
+    }
+    var cm=deck?mergeRemoteCards(deck):{added:0,updated:0};
+    if(rd&&rd.gist&&deck) S.sync.deck=rd;
+    else if(rd&&rd.gist&&!deckInfo().gist) S.sync.deck=rd;
     S.sync.ready=true;
     await sset(K.sync,JSON.stringify(S.sync));
     if(cm.added||cm.updated) await saveAll(); else await saveTexts();
@@ -1423,6 +1476,7 @@ async function syncPull(quiet){
     if(!quiet){
       var m="Забрал: текстов новых "+t.added+", обновлено "+t.updated+(t.removed?", убрано "+t.removed:"");
       if(cm.added||cm.updated) m+="; карточек новых "+cm.added+(cm.updated?", обновлено "+cm.updated:"");
+      else if(S.cards.length) m+=". Колода не менялась — не тянул её зря";
       if(!S.cards.length) m+=". Карточек нет ни здесь, ни в хранилище — киньте сюда card_summary.csv";
       toast(m,7000);
     }
@@ -1435,9 +1489,12 @@ async function syncCheck(){
   syncBusy=true;
   try{
     var r=await remoteAll();
-    if(!r||(!r.texts&&!r.cards)){ toast("Хранилище пустое или файлов в нём нет",4000); return; }
+    if(!r||(!r.texts&&!r.legacy)){ toast("Хранилище пустое или файлов в нём нет",4000); return; }
     var m=r.texts?("В хранилище: "+countsText(counts(r.texts))):"Текстов в хранилище нет";
-    m+=r.cards?(", карточек "+((r.cards.cards||[]).length)):", карточек нет";
+    var rd=(r.texts&&r.texts.deck)||null;
+    m+=r.legacy ? (", карточек "+((r.legacy.cards||[]).length))
+       : (rd&&rd.gist ? (", колода отдельно: "+(rd.n||0)+" карточек"+
+                         (String(rd.sig||"").slice(-1)==="d"?" со словарями":"")) : ", колоды нет");
     if(r.texts&&r.texts.at) m+=", обновлено "+new Date(r.texts.at).toISOString().slice(0,16).replace("T"," ");
     toast(m,7000);
   }catch(e){ syncFail("Не проверилось",e,false); }
@@ -1446,7 +1503,7 @@ async function syncCheck(){
 function openSync(){
   var here=counts(syncPayload());
   openModal("Синхронизация между устройствами",
-    "Разборы, заметки, отметки и сама колода со статистикой лежат в вашем секретном gist на GitHub. На новом устройстве сначала «Забрать», потом уже включайте автоотправку.",
+    "Разборы, заметки, отметки и сама колода со статистикой лежат в ваших секретных gist на GitHub. Колода — в отдельном, поэтому обычный обмен лёгкий. На новом устройстве сначала «Забрать», потом уже включайте автоотправку.",
     '<div class="fgrid">'+
       '<div class="f"><label>токен GitHub (права: gist)</label>'+
         '<textarea rows="1" id="syncTok" placeholder="ghp_…">'+esc(S.sync.token||"")+'</textarea></div>'+
@@ -1469,9 +1526,13 @@ function openSync(){
   var weigh=function(){
     var el=$("#syncWeight"); if(!el) return;
     if(!S.cards.length||!$("#syncCards").checked){ el.textContent="Колода не передаётся — уедут только тексты."; return; }
-    el.textContent="Колода уедет весом примерно "+weightText(deckWeight($("#syncDicts").checked))+
-      ($("#syncDicts").checked?" — со словарями, то есть на другом устройстве будет ровно то же самое."
-                              :". Словари останутся здесь: на другом устройстве будет всё, кроме них.");
+    var same=deckInfo().gist&&deckInfo().sig===[deckAt(),S.cards.length,$("#syncDicts").checked?"d":"n"].join("/");
+    el.textContent="Колода весит примерно "+weightText(deckWeight($("#syncDicts").checked))+
+      ($("#syncDicts").checked?" — со словарями, на другом устройстве будет ровно то же самое."
+                              :". Словари останутся здесь: на другом устройстве будет всё, кроме них.")+
+      (same?" Она уже в хранилище и по сети больше не гоняется — обычный обмен весит "
+            +weightText(JSON.stringify(syncPayload()).length)+"."
+           :" Уедет при ближайшей отправке, дальше — только когда изменится.");
   };
   var save=async function(){
     S.sync.token=$("#syncTok").value.replace(/\s+/g,"");
