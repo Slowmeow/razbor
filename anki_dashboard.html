@@ -1150,7 +1150,9 @@ $("#impBackup").addEventListener("change",function(e){
 var SYNCFILE="anki-dashboard.json";          // ваши тексты
 var CARDPREFIX="anki-dashboard-cards";       // колода: -01.json, -02.json, …
                                              // без неё на новом устройстве тексты некуда положить
-var CARD_FIELD_MAX=240, DICT_SYNC_MAX=900, PART_MAX=700*1024, PARTS_MAX=40;
+/* передаём поля ровно в том виде, в каком они лежат в базе: 700 — предел
+   для длинных полей при разборе csv, 900 — для словарной статьи в хранилище */
+var CARD_FIELD_MAX=PREVIEW_MAX, DICT_SYNC_MAX=STORE_DICT_MAX, PART_MAX=700*1024, PARTS_MAX=40;
 
 function syncPayload(){
   return { v:7, at:Date.now(), edits:S.edits, status:S.status, notes:S.notes,
@@ -1167,8 +1169,7 @@ function cardOne(c,dicts,lean){
       f.push({ key:x.key, label:x.label, ed:false, dict:true, v:String(x.v||"").slice(0,DICT_SYNC_MAX) });
       continue;
     }
-    if(i>0&&!x.ed) continue;            // первое поле — само слово, его берём всегда
-    if(lean&&f.length>=3) continue;
+    if(lean&&f.length>=3&&i>0) continue;   // первое поле — само слово, его берём всегда
     f.push({ key:x.key, label:x.label, ed:!!x.ed, v:String(x.v||"").slice(0,CARD_FIELD_MAX) });
   }
   return { id:c.id, note:c.note, deck:c.deck, n:c.n, a:c.a, rate:c.rate, t:c.t,
@@ -1260,17 +1261,21 @@ function mergeRemoteCards(rc){
   for(i=0;i<inc.length;i++){
     var nc=inc[i]; if(!nc||nc.id==null) continue;
     nc.id=String(nc.id); nc.note=String(nc.note==null?nc.id:nc.note); nc.f=nc.f||[];
-    var e=idx[nc.id];
+    var e=idx[nc.id], touched=false;
     if(!e){ S.cards.push(nc); idx[nc.id]=nc; added++; continue; }
-    if(!fresh) continue;
-    if(e.n!==nc.n||e.a!==nc.a) updated++;
-    e.n=nc.n; e.a=nc.a; e.rate=nc.rate; e.t=nc.t; e.ivl=nc.ivl;
-    e.last=nc.last||e.last; e.first=e.first||nc.first; e.deck=nc.deck||e.deck;
-    for(var j=0;j<nc.f.length;j++){                      // поля дописываем, свои не трогаем
+    if(fresh){
+      if(e.n!==nc.n||e.a!==nc.a) touched=true;
+      e.n=nc.n; e.a=nc.a; e.rate=nc.rate; e.t=nc.t; e.ivl=nc.ivl;
+      e.last=nc.last||e.last; e.first=e.first||nc.first; e.deck=nc.deck||e.deck;
+    }
+    /* поля дописываем всегда, а не только при свежем экспорте: словари могли
+       не попасть в прошлую отправку, и ждать нового csv ради них незачем */
+    for(var j=0;j<nc.f.length;j++){
       var have=false;
       for(var k=0;k<e.f.length;k++) if(e.f[k].key===nc.f[j].key){ have=true; break; }
-      if(!have) e.f.push(nc.f[j]);
+      if(!have){ e.f.push(nc.f[j]); touched=true; }
     }
+    if(touched) updated++;
   }
   if(fresh){
     S.cardsAt=rc.at||Date.now();
@@ -1376,7 +1381,7 @@ async function syncPush(quiet){
     }
     var files={}; files[SYNCFILE]={ content:JSON.stringify(syncPayload()) };
     if(S.sync.cards!==false&&S.cards.length){
-      var parts=cardParts(S.sync.dicts===true,false);
+      var parts=cardParts(S.sync.dicts!==false,false);
       if(parts.length>PARTS_MAX) parts=cardParts(false,false);       // без словарей
       if(parts.length>PARTS_MAX) parts=cardParts(false,true);        // и без длинных полей
       if(parts.length>PARTS_MAX){
@@ -1398,7 +1403,7 @@ async function syncPush(quiet){
     await saveTexts();
     if(changed&&(changed.added||changed.updated||changed.removed)) renderAll();
     if(!quiet) toast("Отправлено: "+countsText(counts(syncPayload()))+
-      (withCards?" и "+S.cards.length+" карточек"+(S.sync.dicts===true?" со словарями":""):""),4000);
+      (withCards?" и "+S.cards.length+" карточек"+(S.sync.dicts!==false?" со словарями":""):""),4000);
   }catch(e){ syncFail("Не отправилось",e,quiet); }
   finally{ syncBusy=false; if(syncQueued){ syncQueued=false; syncSoon(); } }
 }
@@ -1451,7 +1456,7 @@ function openSync(){
     '<div class="acts">'+
       '<label class="btn ghost"><input type="checkbox" id="syncAuto"'+(S.sync.auto?" checked":"")+'> отправлять автоматически</label>'+
       '<label class="btn ghost"><input type="checkbox" id="syncCards"'+(S.sync.cards!==false?" checked":"")+'> передавать и карточки</label>'+
-      '<label class="btn ghost"><input type="checkbox" id="syncDicts"'+(S.sync.dicts===true?" checked":"")+'> и словари тоже</label>'+
+      '<label class="btn ghost"><input type="checkbox" id="syncDicts"'+(S.sync.dicts!==false?" checked":"")+'> и словари тоже</label>'+
     '</div>'+
     '<p class="note" id="syncWeight" style="margin-top:8px"></p>'+
     '<div class="acts"><button class="btn primary" id="syncDown">Забрать</button>'+
@@ -1465,8 +1470,8 @@ function openSync(){
     var el=$("#syncWeight"); if(!el) return;
     if(!S.cards.length||!$("#syncCards").checked){ el.textContent="Колода не передаётся — уедут только тексты."; return; }
     el.textContent="Колода уедет весом примерно "+weightText(deckWeight($("#syncDicts").checked))+
-      ($("#syncDicts").checked?". Словари делают обмен тяжелее, зато на новом устройстве сразу всё."
-                              :". Словари останутся здесь — их вернёт свежий card_summary.csv.");
+      ($("#syncDicts").checked?" — со словарями, то есть на другом устройстве будет ровно то же самое."
+                              :". Словари останутся здесь: на другом устройстве будет всё, кроме них.");
   };
   var save=async function(){
     S.sync.token=$("#syncTok").value.replace(/\s+/g,"");
