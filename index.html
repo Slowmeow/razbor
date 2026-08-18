@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Разбор колоды</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#101312">
@@ -33,9 +33,13 @@
 }
 *{box-sizing:border-box}
 [hidden]{display:none !important}
-html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);min-height:100%}
+html{overflow-x:hidden;-webkit-text-size-adjust:100%}
+html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);min-height:100%;overflow-wrap:break-word}
+body{overscroll-behavior-y:none;-webkit-tap-highlight-color:transparent;
+     padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
+img,svg,video,table{max-width:100%}
 body{font-family:var(--ui);line-height:1.45;-webkit-text-size-adjust:100%}
-#root{max-width:940px;margin:0 auto;padding:20px 18px 80px}
+#root{max-width:940px;margin:0 auto;padding:20px 18px calc(80px + env(safe-area-inset-bottom))}
 h1{margin:0;font-size:19px;font-weight:650;letter-spacing:-.01em}
 p{margin:0}
 .note{font-size:12px;color:var(--ink3)}
@@ -68,9 +72,9 @@ p{margin:0}
 summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 .controls{margin-top:18px;display:flex;flex-direction:column;gap:10px}
-.line1{display:flex;gap:8px}
-#q{flex:1;font:inherit;font-size:14px;padding:9px 11px;border:1px solid var(--rule);border-radius:3px;background:var(--panel);color:var(--ink)}
-#sort{font:inherit;font-size:13px;padding:9px;border:1px solid var(--rule);border-radius:3px;background:var(--panel);color:var(--ink)}
+.line1{display:flex;gap:8px;min-width:0}
+#q{flex:1 1 auto;min-width:0;font:inherit;font-size:14px;padding:9px 11px;border:1px solid var(--rule);border-radius:3px;background:var(--panel);color:var(--ink)}
+#sort{flex:0 1 auto;min-width:0;max-width:46%;font:inherit;font-size:13px;padding:9px;border:1px solid var(--rule);border-radius:3px;background:var(--panel);color:var(--ink)}
 .line2{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .chip{font:inherit;font-size:12px;padding:5px 11px;border-radius:20px;border:1px solid var(--rule);background:transparent;
       color:var(--ink2);cursor:pointer;white-space:nowrap}
@@ -89,7 +93,7 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .row.cursor{background:var(--panel);box-shadow:inset 3px 0 0 var(--accent)}
 .bar{align-self:stretch;border-radius:2px;background:var(--c);min-height:32px}
 .tier{font-family:var(--mono);font-size:14px;font-weight:600;color:var(--c);text-align:center}
-.term{font-family:var(--jp);font-size:17px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.term{font-family:var(--jp);font-size:17px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;min-width:0;overflow-wrap:anywhere}
 .read{font-size:12.5px;color:var(--ink3);font-family:var(--jp)}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);display:inline-block;flex:none}
 .check{color:var(--easy);font-size:12px}
@@ -113,7 +117,7 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .fold>summary::before{content:"▸ ";color:var(--ink3)}
 .fold[open]>summary::before{content:"▾ "}
 .fold[open]>summary{color:var(--ink2);border-bottom:1px solid var(--rule)}
-.fold .body{padding:12px;font-family:var(--jp);font-size:14px;line-height:1.65;color:var(--ink2);
+.fold .body{padding:12px;font-family:var(--jp);font-size:14px;line-height:1.65;color:var(--ink2);overflow-wrap:anywhere;overscroll-behavior:contain;
             max-height:360px;overflow:auto;white-space:pre-wrap}
 .fold .body.prose{font-family:var(--serif);font-size:16px;line-height:1.75;color:var(--ink)}
 .fold .body.prose p{margin:0 0 11px} .fold .body.prose p:last-child{margin:0}
@@ -124,14 +128,15 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .simlist button{font:inherit;font-family:var(--jp);font-size:13px;padding:3px 9px;border:1px solid var(--rule);border-radius:3px;
                 background:var(--panel);color:var(--ink);cursor:pointer}
 .simlist .why{font-family:var(--mono);font-size:10px;color:var(--ink3);margin-left:5px}
-.acts{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px}
+.acts{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px;min-width:0}
+.acts>*{max-width:100%}
 .acts .grow{flex:1}
 
 .more{text-align:center;padding:18px}
 .empty{padding:44px 10px;text-align:center;color:var(--ink3);font-size:13.5px}
 
-.modal{position:fixed;inset:0;background:rgba(8,10,9,.6);display:grid;place-items:center;padding:18px;z-index:50}
-.sheet{background:var(--paper);border:1px solid var(--rule);border-radius:4px;max-width:680px;width:100%;max-height:84vh;
+.modal{position:fixed;inset:0;background:rgba(8,10,9,.6);display:grid;place-items:center;padding:18px;z-index:50;overscroll-behavior:contain}
+.sheet{background:var(--paper);border:1px solid var(--rule);border-radius:4px;max-width:680px;width:100%;max-height:84vh;overscroll-behavior:contain;
        overflow:auto;padding:18px}
 .sheetHead{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
 .sheetHead h3{margin:0;font-size:16px}
@@ -148,12 +153,13 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
                 border-radius:3px;background:var(--panel);color:var(--ink)}
 
 .drill{position:fixed;inset:0;background:var(--paper);z-index:60;display:flex;flex-direction:column}
-.drillTop{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--rule)}
+.drillTop{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--rule);
+         padding-top:calc(10px + env(safe-area-inset-top))}
 .drillTop .track{flex:1;height:4px;background:var(--rule);border-radius:3px;overflow:hidden}
 .drillTop .fill{height:100%;background:var(--accent)}
 .drillPos{font-family:var(--mono);font-size:12px;color:var(--ink3);white-space:nowrap}
-.drillBody{flex:1;overflow:auto;padding:26px 18px 20px;max-width:680px;margin:0 auto;width:100%}
-.drillWord{font-family:var(--jp);font-size:46px;line-height:1.15}
+.drillBody{flex:1;overflow:auto;overscroll-behavior:contain;padding:26px 18px 20px;max-width:680px;margin:0 auto;width:100%}
+.drillWord{font-family:var(--jp);font-size:46px;line-height:1.15;overflow-wrap:anywhere}
 .drillRead{font-family:var(--jp);font-size:17px;color:var(--ink3);margin-top:4px}
 .drillSent{font-family:var(--jp);font-size:17px;margin-top:16px;padding-left:12px;border-left:3px solid var(--rule)}
 .drillStats{display:flex;gap:14px;flex-wrap:wrap;font-family:var(--mono);font-size:11.5px;color:var(--ink3);margin-top:12px}
@@ -161,22 +167,85 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
              padding-bottom:calc(12px + env(safe-area-inset-bottom))}
 .drillBottom .btn{flex:1}
 
-.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--paper);font-size:13px;
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:var(--paper);font-size:13px;
        padding:10px 16px;border-radius:3px;z-index:70;max-width:88vw;text-align:center}
 .kbd{font-family:var(--mono);font-size:10.5px;border:1px solid var(--rule);border-bottom-width:2px;border-radius:3px;
      padding:0 4px;color:var(--ink3)}
 
+/* ---------- телефон ----------
+   Правила простые: ничего не вылезает за экран, палец попадает по кнопке
+   с первого раза (44px), любое поле ввода не мельче 16px — иначе iOS
+   при фокусе зумит страницу и она больше не влезает. */
 @media (max-width:640px){
-  #root{padding:14px 12px 84px}
-  .controls{position:sticky;top:0;background:var(--paper);z-index:15;padding-bottom:8px;box-shadow:0 6px 8px -8px rgba(0,0,0,.4)}
-  .line2{overflow-x:auto;flex-wrap:nowrap;padding-bottom:4px}
-  .chip{flex:none;padding:7px 12px}
-  .row{grid-template-columns:3px 20px 1fr;gap:8px;padding:12px 2px}
+  #root{padding:14px 12px calc(84px + env(safe-area-inset-bottom))}
+  h1{font-size:17px}
+  .sub{font-size:10.5px}
+  .mark{width:34px;height:34px;font-size:19px}
+  .tools{gap:4px}
+
+  .top{gap:8px}
+  .iconbtn{width:44px;height:44px;font-size:17px}
+
+  .controls{position:sticky;top:0;background:var(--paper);z-index:15;padding-bottom:8px;
+            box-shadow:0 6px 8px -8px rgba(0,0,0,.4)}
+  #q{font-size:16px;padding:11px}
+  #sort{font-size:16px;padding:11px 8px;max-width:36%}
+  .line2{overflow-x:auto;flex-wrap:nowrap;padding-bottom:4px;
+         scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
+  .line2::-webkit-scrollbar{display:none}
+  .chip{flex:none;min-height:40px;padding:0 14px;display:inline-flex;align-items:center}
+  .line3{flex-wrap:wrap}
+  .line3 .btn{flex:1 1 auto;min-height:44px}
+  .count{width:100%;text-align:right}
+
+  .row{grid-template-columns:3px 20px 1fr;gap:8px;padding:12px 2px;min-height:56px}
   .nums{grid-column:3;text-align:left;display:flex;gap:10px}
   .nums b{display:inline}
-    .editor{padding-left:6px}
-  .f textarea{font-size:16px}
+
+  .editor{padding-left:6px;padding-right:2px}
+  .fold>summary{padding:12px;min-height:44px;display:flex;align-items:center}
+  .fold .body{max-height:52vh}
+  .f textarea,.f.long textarea,.f.mine textarea{font-size:16px}
+  .btn{min-height:44px;padding:10px 14px}
+  .btn.ghost{min-height:40px}
+  .simlist button{min-height:40px}
+
+  /* окно — листом снизу: так до него дотягивается большой палец */
+  .modal{place-items:end center;padding:0}
+  .sheet{max-width:none;max-height:90vh;border-radius:14px 14px 0 0;border-bottom:0;
+         padding:16px 14px calc(16px + env(safe-area-inset-bottom))}
+  .sheetHead{position:sticky;top:-16px;background:var(--paper);padding-top:2px;z-index:1}
+  .x{width:44px;height:44px;font-size:22px}
+  .menu .item{padding:13px 12px;min-height:48px}
+
   .drillWord{font-size:38px}
+  .drillBody{padding:20px 14px 16px}
+  .drillBottom{padding:10px 12px calc(10px + env(safe-area-inset-bottom))}
+  .drillBottom .btn{min-height:48px}
+  .drillTop .btn{min-height:40px}
+
+  .chunk textarea{font-size:16px;height:110px}
+  #taskN{font-size:16px;min-height:40px;padding:6px}
+  #promptBox{font-size:16px}
+  input[type=checkbox]{width:20px;height:20px;margin:0 2px 0 0;flex:none}
+  label.btn{display:inline-flex;align-items:center;gap:6px;min-height:44px}
+
+  .toast{max-width:calc(100vw - 24px);font-size:13.5px}
+}
+/* совсем узкие экраны — 320px и меньше */
+@media (max-width:360px){
+  #root{padding-left:10px;padding-right:10px}
+  #sort{max-width:40%;font-size:16px}
+  .drillWord{font-size:32px}
+  .row{gap:6px}
+}
+/* телефон лёжа: экран низкий, шапку и отступы ужимаем */
+@media (max-height:480px) and (orientation:landscape){
+  #root{padding-top:8px}
+  .controls{position:static}
+  .drillWord{font-size:30px}
+  .drillBody{padding-top:12px}
+  .sheet{max-height:96vh}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none !important}}
 </style>
@@ -212,12 +281,12 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   <div class="line1">
     <input type="search" id="q" placeholder="Поиск по словам и разборам">
     <select id="sort">
-      <option value="again">по числу Again</option>
-      <option value="score">по сложности с поправкой на объём</option>
-      <option value="rate">по доле Again</option>
-      <option value="reviews">по числу повторов</option>
-      <option value="time">по времени ответа</option>
-      <option value="word">по алфавиту</option>
+      <option value="again" data-s="Again">по числу Again</option>
+      <option value="score" data-s="сложность">по сложности с поправкой на объём</option>
+      <option value="rate" data-s="доля Again">по доле Again</option>
+      <option value="reviews" data-s="повторы">по числу повторов</option>
+      <option value="time" data-s="время">по времени ответа</option>
+      <option value="word" data-s="алфавит">по алфавиту</option>
     </select>
   </div>
   <div class="line2" id="chips">
@@ -1310,7 +1379,8 @@ async function gist(method,path,body){
       headers:{ "Authorization":"Bearer "+S.sync.token, "Accept":"application/vnd.github+json",
                 "Content-Type":"application/json" },
       body: body?JSON.stringify(body):undefined });
-  }catch(e){ var ne=new Error("нет связи с github.com"); ne.status=0; throw ne; }
+  }catch(e){ var ne=new Error(online()?"нет связи с github.com":"нет сети — приложение работает офлайн, обмен подождёт");
+    ne.status=0; throw ne; }
   if(!res.ok){
     var j=null; try{ j=await res.json(); }catch(x){}
     var why=res.status===401 ? " — токен не подошёл или отозван"
@@ -1383,8 +1453,10 @@ function syncFail(what,e,quiet){
 }
 /* один обмен за раз: автоотправка не должна влезать в середину «Забрать» */
 var syncBusy=false, syncQueued=false, syncT=null;
+function online(){ return navigator.onLine!==false; }
 function syncSoon(){
   if(!(S.sync.auto&&S.sync.token&&S.sync.gist&&S.sync.ready)) return;
+  if(!online()){ S.sync.pending=true; return; }          // вернётся сеть — отправим
   clearTimeout(syncT); syncT=setTimeout(function(){ syncPush(true); },5000);
 }
 /* Отправка сначала забирает то, что уже лежит, и сливает с локальным.
@@ -1621,6 +1693,14 @@ $("#theme").onclick=function(){
   S.theme=S.theme==="auto"?"light":(S.theme==="light"?"dark":"auto");
   applyTheme(); saveMeta(); toast("Тема: "+({auto:"как в системе",light:"светлая",dark:"тёмная"})[S.theme]);
 };
+var narrow=window.matchMedia("(max-width:640px)");
+function shortSort(){
+  document.querySelectorAll("#sort option").forEach(function(o){
+    if(!o.dataset.full) o.dataset.full=o.textContent;
+    o.textContent = narrow.matches ? o.dataset.s : o.dataset.full;
+  });
+}
+if(narrow.addEventListener) narrow.addEventListener("change",shortSort);
 function applyTheme(){
   if(S.theme==="auto") document.documentElement.removeAttribute("data-theme");
   else document.documentElement.setAttribute("data-theme",S.theme);
@@ -1678,10 +1758,16 @@ window.addEventListener("appinstalled",function(){ $("#install").hidden=true; to
   await initStorage();
   var sy=await sget(K.sync); if(sy) try{ S.sync=JSON.parse(sy); }catch(x){}
   var ok=await loadAll();
-  applyTheme(); renderAll();
+  shortSort(); applyTheme(); renderAll();
   if(MODE==="memory") $("#progress").textContent="Хранилище недоступно: тексты будут жить только до перезагрузки.";
   if(ok) toast("Загружено: "+S.cards.length+" карточек");
-  if(S.sync.auto&&S.sync.token&&S.sync.gist) syncPull(true);
+  if(S.sync.auto&&S.sync.token&&S.sync.gist&&online()) syncPull(true);
+  /* сеть появилась — досылаем то, что накопилось офлайн */
+  window.addEventListener("online",function(){
+    if(S.sync.auto&&S.sync.token&&S.sync.gist&&S.sync.ready&&S.sync.pending){
+      S.sync.pending=false; syncSoon();
+    }
+  });
   if(navigator.serviceWorker && location.protocol!=="file:"){
     navigator.serviceWorker.register("sw.js").catch(function(e){ console.warn("sw:",e); });
   }
