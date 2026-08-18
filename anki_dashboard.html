@@ -3,6 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none';
+  script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;
+  font-src 'self'; manifest-src 'self'; worker-src 'self'; child-src 'self' blob:;
+  connect-src 'self' https://api.github.com https://gist.githubusercontent.com;
+  base-uri 'none'; form-action 'none'">
 <title>Разбор колоды</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#101312">
@@ -361,7 +366,8 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 <div class="toast" id="toast" hidden></div>
 
 <script src="papaparse.min.js"></script>
-<script>if(!window.Papa){var s=document.createElement("script");s.src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js";document.head.appendChild(s);}</script>
+<script>if(!window.Papa){document.getElementById("progress").textContent=
+  "Не загрузился papaparse.min.js — он должен лежать рядом с index.html.";}</script>
 <script>
 (function(){
 "use strict";
@@ -534,6 +540,17 @@ function detect(cols){
   if(pick(cols,["retention","retention_rate","lapses","errors","again_count"])) return "cards";
   return "unknown";
 }
+/* Ключ карточки. Раньше строки без card_id получали «row0», «row1» — и та же
+   строка в другом файле становилась другой карточкой. Теперь ключ выводится из
+   note_id или из самого слова: файл можно кидать хоть каждый день. */
+function idOf(row,cId,cNote,fcols,r){
+  var v=cId!=null?String(row[cId]==null?"":row[cId]).trim():"";
+  if(v) return v;
+  v=cNote!=null?String(row[cNote]==null?"":row[cNote]).trim():"";
+  if(v) return "~n"+v;
+  for(var i=0;i<fcols.length;i++){ var w=clean(row[fcols[i]]); if(w) return "~w"+w.slice(0,40); }
+  return "~r"+r;
+}
 function buildCards(rows,cols){
   var cId=pick(cols,["card_id","cid","id"]), cNote=pick(cols,["note_id","nid","note"]),
       cDeck=pick(cols,["deck_name","deck"]), cRev=pick(cols,["total_reviews","reviews","reps","review_count"]),
@@ -548,8 +565,9 @@ function buildCards(rows,cols){
   for(var i=0;i<Math.min(rows.length,30);i++) fcols.forEach(function(f){ samples[f].push(clean(rows[i][f])); });
   var labels={}; fcols.forEach(function(f){ labels[f]=guessLabel(samples[f]); });
   var out=[];
+  var noId=0;
   for(var r=0;r<rows.length;r++){
-    var row=rows[r], id=String(row[cId]!=null?row[cId]:("row"+r));
+    var row=rows[r], id=idOf(row,cId,cNote,fcols,r); if(id.charAt(0)==="~") noId++;
     var n=parseFloat(row[cRev]); if(!isFinite(n)) n=0;
     var a=parseFloat(row[cAg]);
     if(!isFinite(a)){ var rt=parseFloat(row[cRate]);
@@ -568,6 +586,7 @@ function buildCards(rows,cols){
     out.push({ id:id, note:String(row[cNote]!=null?row[cNote]:id), deck:row[cDeck]||"", n:n, a:a, rate:n?a/n:0, t:t,
       last:(row[cLast]||"").slice(0,10), first:(row[cFirst]||"").slice(0,10), ivl:parseFloat(row[cIvl])||0, f:fields });
   }
+  out.noId=noId;
   return out;
 }
 
@@ -600,19 +619,25 @@ function parseFile(file,onProgress){
 }
 function mergeCards(inc,stamp){
   var idx={},i; for(i=0;i<S.cards.length;i++) idx[S.cards[i].id]=S.cards[i];
-  var added=0,moved=0;
+  var added=0,moved=0,seen={};
   for(i=0;i<inc.length;i++){
-    var nc=inc[i], e=idx[nc.id];
+    var nc=inc[i], e=idx[nc.id]; seen[nc.id]=1;
     if(!e){ nc.added=stamp; nc.dn=0; S.cards.push(nc); idx[nc.id]=nc; added++; continue; }
     var dn=nc.n-e.n;
+    /* было e.dn=dn только при dn>0 — и старая пометка «+7 повт.» висела
+       на карточке после следующих выгрузок, где ничего не менялось */
     if(dn>0){ e.dn=dn; e.da=Math.max(0,nc.a-e.a); moved++; }
+    else { e.dn=0; e.da=0; }
     e.n=nc.n; e.a=nc.a; e.rate=nc.rate; e.t=nc.t; e.ivl=nc.ivl;
     e.last=nc.last||e.last; e.first=e.first||nc.first; e.deck=nc.deck||e.deck;
     var byKey={}; for(var k=0;k<e.f.length;k++) byKey[e.f[k].key]=e.f[k];
     for(var j=0;j<nc.f.length;j++){ var nf=nc.f[j], of=byKey[nf.key];
       if(of){ of.v=nf.v; of.ed=nf.ed; of.dict=nf.dict; of.label=of.label||nf.label; } else e.f.push(nf); }
   }
-  return { added:added, moved:moved };
+  /* карточки, которых в этом файле не оказалось: удалили в Anki или экспорт
+     был по части колоды. Сами не трогаем — разборы к ним никуда не деваются */
+  var gone=0; for(i=0;i<S.cards.length;i++) if(!seen[S.cards[i].id]) gone++;
+  return { added:added, moved:moved, gone:gone };
 }
 function mergeAnswer(rows,cols){
   var cE=pick(cols,["этимология","etymology","разбор"]), cS=pick(cols,["story","интересное","история","факт"]);
@@ -653,7 +678,8 @@ async function handleFiles(files){
   if(cards){
     prog.textContent="Сверяю с тем, что уже есть…";
     var stamp=new Date().toISOString().slice(0,10);
-    var res=mergeCards(buildCards(cards.rows,cards.cols),stamp);
+    var built=buildCards(cards.rows,cards.cols), noId=built.noId||0;
+    var res=mergeCards(built,stamp);
     S.cardsAt=Date.now();
     S.sync.dirty=true;                   // свежий экспорт тоже надо отдать
     S.imports.unshift({ at:stamp, added:res.added, moved:res.moved });
@@ -661,7 +687,9 @@ async function handleFiles(files){
     buildIndex();
     prog.textContent="Сохраняю…";
     await saveAll();
-    say(res.added?("Новых: "+res.added+", обновлено: "+res.moved):("Обновлено: "+res.moved));
+    say((res.added?"Новых: "+res.added+", обновлено: "+res.moved:"Обновлено: "+res.moved)+
+        (res.gone?", нет в этом файле: "+res.gone:"")+
+        (noId?", строк без card_id: "+noId:""));
     S.page=0;
   }
   if(ans){ buildIndex(); await saveAll(); say("Разборов добавлено: "+ans.ok+(ans.miss?", не нашёл карточку для "+ans.miss:"")); }
@@ -719,6 +747,7 @@ async function saveTexts(){
   await sset(K.mtimes,JSON.stringify(S.mtimes));
   await sset(K.sync,JSON.stringify(S.sync));
   await saveMeta();
+  announce();
 }
 var saveT=null;
 /* время правки: общее по карточке (старый формат) и отдельное по полю —
@@ -736,7 +765,31 @@ function saveSoon(){ clearTimeout(saveT); saveT=setTimeout(async function(){
   await sset(K.mtime,JSON.stringify(S.mtime)); await sset(K.mtimes,JSON.stringify(S.mtimes));
   await sset(K.sync,JSON.stringify(S.sync));
   await saveMeta();
-  syncSoon(); },700); }
+  announce(); syncSoon(); },700); }
+/* Две вкладки одного приложения на компьютере: та, что сохранила, шепчет
+   остальным, и они перечитывают тексты из базы. Без этого вторая вкладка
+   сохраняла своё устаревшее состояние поверх работы первой. */
+var chan=null, chanId=Math.random().toString(36).slice(2);
+try{ chan=new BroadcastChannel("ankidash"); }catch(e){ chan=null; }
+function announce(){ if(chan) try{ chan.postMessage({ t:"texts", from:chanId }); }catch(e){} }
+async function reloadTexts(){
+  var e=await sget(K.edits); if(e) try{ S.edits=JSON.parse(e); }catch(x){}
+  var st=await sget(K.status); if(st) try{ S.status=JSON.parse(st); }catch(x){}
+  var nt=await sget(K.notes); if(nt) try{ S.notes=JSON.parse(nt); }catch(x){}
+  var et=await sget(K.etym); if(et) try{ S.etym=JSON.parse(et); }catch(x){}
+  var so=await sget(K.story); if(so) try{ S.story=JSON.parse(so); }catch(x){}
+  var sn=await sget(K.sent); if(sn) try{ S.sent=JSON.parse(sn); }catch(x){}
+  var mt=await sget(K.mtime); if(mt) try{ S.mtime=JSON.parse(mt); }catch(x){}
+  var ms=await sget(K.mtimes); if(ms) try{ S.mtimes=JSON.parse(ms)||{}; }catch(x){}
+  var a=document.activeElement;
+  /* человек печатает — экран не дёргаем, данные уже верные */
+  if(a&&(a.tagName==="TEXTAREA"||a.tagName==="INPUT")) return;
+  if(S.drill) renderDrill(); else renderAll();
+}
+if(chan) chan.onmessage=function(ev){
+  var d=ev&&ev.data; if(!d||d.t!=="texts"||d.from===chanId) return;
+  reloadTexts();
+};
 async function loadAll(){
   var m=await sget(K.meta); if(!m) return false;
   try{ m=JSON.parse(m); }catch(e){ return false; }
@@ -788,7 +841,7 @@ function prose(t){
     .replace(/\*\*([^*\n]+)\*\*/g,"<strong>$1</strong>")
     .replace(/^([А-ЯЁA-Z][^:\n]{2,28}):(\s|$)/gm,"<strong>$1:</strong>$2")
     .replace(/^\s*[-—•]\s+/gm,"— ")
-    .replace(/([\u3040-\u30FF\u4E00-\u9FFF][\u3040-\u30FF\u4E00-\u9FFF\u3005\u30FC]*)/g,'<span class="jp">$1</span>');
+    .replace(/([\u3040-\u30FF\u4E00-\u9FFF][\u3040-\u30FF\u4E00-\u9FFF\u3005\u30FC]*)/g,'<span class="jp" lang="ja">$1</span>');
   return h.split(/\n{2,}/).map(function(p){ return "<p>"+p.replace(/\n/g,"<br>")+"</p>"; }).join("");
 }
 
@@ -890,7 +943,7 @@ function rowHTML(c,i){
   var col=colorOf(c), read=byLabel(c,"чтение");
   return '<button class="row'+(i===S.cursor?" cursor":"")+'" data-i="'+i+'" style="--c:'+col+'">'+
     '<span class="bar"></span><span class="tier">'+tierOf(c)+'</span>'+
-    '<span class="main"><span class="term">'+esc(mainText(c).slice(0,60))+
+    '<span class="main"><span class="term" lang="ja">'+esc(mainText(c).slice(0,60))+
       (read?'<span class="read">'+esc(read)+'</span>':"")+
       (etymOf(c)?'<span class="dot" title="есть разбор"></span>':"")+
       (S.status[c.id]==="done"?'<span class="check">✓</span>':"")+'</span></span>'+
@@ -902,14 +955,14 @@ function foldHTML(title,body,cls,open){
 }
 function dictFolds(c,openMain){
   var jp=dictOf(c,"jp"), en=dictOf(c,"en"), h="";
-  if(jp) h+=foldHTML("словарь 国語 (JP→JP)",esc(jp),"",openMain);
-  if(en) h+=foldHTML("перевод (JP→EN)",esc(en),"",false);
+  if(jp) h+=foldHTML("словарь 国語 (JP→JP)",'<span lang="ja">'+esc(jp)+'</span>',"",openMain);
+  if(en) h+=foldHTML("перевод (JP→EN)",'<span lang="ja">'+esc(en)+'</span>',"",false);
   return h;
 }
 function simFold(c){
   var s=similarOf(c); if(!s.length) return "";
   return '<details class="fold"><summary>похожие слова ('+s.length+')</summary><div class="simlist">'+
-    s.map(function(x){ return '<button data-go="'+esc(x.c.id)+'">'+esc(mainText(x.c))+
+    s.map(function(x){ return '<button data-go="'+esc(x.c.id)+'" lang="ja">'+esc(mainText(x.c))+
       '<span class="why">'+esc(x.why)+'</span></button>'; }).join("")+'</div></details>';
 }
 function textFields(c){
@@ -997,9 +1050,9 @@ function renderDrill(){
   $("#drillPos").textContent=(d.i+1)+" / "+d.list.length;
   $("#drillFill").style.width=((d.i+1)/d.list.length*100)+"%";
   $("#drillBody").innerHTML=
-    '<div class="drillWord">'+esc(mainText(c))+'</div>'+
-    (read?'<div class="drillRead">'+esc(read)+'</div>':"")+
-    (ex?'<div class="drillSent">'+esc(ex)+'</div>':"")+
+    '<div class="drillWord" lang="ja">'+esc(mainText(c))+'</div>'+
+    (read?'<div class="drillRead" lang="ja">'+esc(read)+'</div>':"")+
+    (ex?'<div class="drillSent" lang="ja">'+esc(ex)+'</div>':"")+
     '<div class="drillStats"><span>важность '+tierOf(c)+'</span><span>'+c.a+' Again из '+c.n+'</span>'+
       '<span>'+fmtTime(c.t)+'</span></div>'+
     (et?foldHTML("разбор и происхождение",prose(et),"prose"):"")+
@@ -1088,7 +1141,7 @@ var qT=null;
 $("#q").addEventListener("input",function(e){
   var v=e.target.value;
   clearTimeout(qT);
-  qT=setTimeout(function(){ S.q=v; S.page=0; S.cursor=-1; renderList(); }, 160);
+  qT=setTimeout(function(){ S.q=v; S.page=0; S.cursor=-1; renderList(); }, 90);
 });
 $("#sort").addEventListener("change",function(e){ S.sort=e.target.value; S.page=0; saveMeta(); renderList(); });
 $("#chips").addEventListener("click",function(e){
@@ -1502,7 +1555,10 @@ function deckNeedsPush(rd){
 function syncFail(what,e,quiet){
   console.warn("sync:",e);
   var cfg=(e.status===401||e.status===403||e.status===404||e.status===422);
-  if(!quiet||cfg) toast(what+": "+e.message,6000);
+  /* токен отозвали или хранилище удалили — сам обмен выключаем, иначе ошибка
+     будет выскакивать при каждом открытии. Вернётся, когда настройки сохранят */
+  if(cfg&&quiet){ S.sync.off=true; sset(K.sync,JSON.stringify(S.sync)); }
+  if(!quiet||cfg) toast(what+": "+e.message+(cfg&&quiet?". Обмен сам собой приостановлен — загляните в настройки":""),7000);
 }
 /* один обмен за раз: автоотправка не должна влезать в середину «Забрать» */
 var syncBusy=false, syncQueued=false, syncT=null;
@@ -1515,7 +1571,7 @@ function syncSoon(){
 /* Обмен без кнопки. Хранилище настроено — значит человек хочет одно и то же
    на всех устройствах, и незачем заставлять его лезть в меню:
    открыли — забрали свежее, ушли — отдали своё. */
-function syncable(){ return !!(S.sync.token&&S.sync.gist&&online()); }
+function syncable(){ return !!(S.sync.token&&S.sync.gist&&online()&&!S.sync.off); }
 async function syncOnOpen(){
   if(!syncable()) return;
   /* своё несохранённое отдаём отправкой: она сама сначала сольёт чужое */
@@ -1645,9 +1701,9 @@ function openSync(){
     "Разборы, заметки, отметки и сама колода со статистикой лежат в ваших секретных gist на GitHub. Колода — в отдельном, поэтому обычный обмен лёгкий. На новом устройстве сначала «Забрать», потом уже включайте автоотправку.",
     '<div class="fgrid">'+
       '<div class="f"><label>токен GitHub (права: gist)</label>'+
-        '<textarea rows="1" id="syncTok" placeholder="ghp_…">'+esc(S.sync.token||"")+'</textarea></div>'+
+        '<textarea rows="1" id="syncTok" spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete="off" placeholder="ghp_…">'+esc(S.sync.token||"")+'</textarea></div>'+
       '<div class="f"><label>адрес хранилища — создастся сам при первой отправке</label>'+
-        '<textarea rows="1" id="syncGist" placeholder="пусто">'+esc(S.sync.gist||"")+'</textarea></div>'+
+        '<textarea rows="1" id="syncGist" spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete="off" placeholder="пусто">'+esc(S.sync.gist||"")+'</textarea></div>'+
     '</div>'+
     '<div class="acts">'+
       '<label class="btn ghost"><input type="checkbox" id="syncAuto"'+(S.sync.auto?" checked":"")+'> отправлять сразу после правки</label>'+
@@ -1677,6 +1733,7 @@ function openSync(){
            :" Уедет при ближайшей отправке, дальше — только когда изменится.");
   };
   var save=async function(){
+    S.sync.off=false;                    // человек заглянул в настройки — пробуем снова
     S.sync.token=$("#syncTok").value.replace(/\s+/g,"");
     S.sync.gist=gistId($("#syncGist").value);
     S.sync.auto=$("#syncAuto").checked;
