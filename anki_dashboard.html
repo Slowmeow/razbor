@@ -108,6 +108,33 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 .editor{padding:8px 0 16px 14px;border-bottom:1px solid var(--rule);background:var(--panel)}
 .fgrid{display:flex;flex-direction:column;gap:10px;margin:10px 0}
+.btn.big small{display:block;font-size:11.5px;font-weight:400;opacity:.75;margin-top:2px;letter-spacing:.02em}
+#sizeOwn{font:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--rule);border-radius:3px;
+         background:var(--panel);color:var(--ink)}
+.planTop{display:flex;gap:10px;margin:14px 0 4px;flex-wrap:wrap}
+.planNum{flex:1 1 90px;border:1px solid var(--rule);border-radius:4px;padding:9px 10px;background:var(--panel);
+         font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink3)}
+.planNum b{display:block;font-family:var(--ui);font-size:20px;letter-spacing:0;text-transform:none;color:var(--ink)}
+.lessons{margin-top:14px;display:flex;flex-direction:column;gap:6px;max-height:46vh;overflow-y:auto;
+         overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.lesson{display:flex;gap:10px;align-items:center;width:100%;text-align:left;font:inherit;color:inherit;
+        padding:9px 10px;border:1px solid var(--rule);border-radius:4px;background:var(--panel);cursor:pointer}
+.lesson:hover{border-color:var(--ink2)}
+.lesson.done{opacity:.62}
+.lnum{font-family:var(--mono);font-size:13px;color:var(--ink3);min-width:22px;text-align:right}
+.lmain{flex:1;min-width:0}
+.ltitle{display:flex;gap:8px;align-items:baseline;font-size:14px}
+.lstate{font-family:var(--mono);font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink3)}
+.lbar{display:block;height:3px;border-radius:2px;background:var(--rule);margin:5px 0 4px;overflow:hidden}
+.lbar i{display:block;height:100%;background:var(--easy)}
+.lsub{font-family:var(--mono);font-size:11px;color:var(--ink3)}
+.lword{font-family:var(--jp);font-size:15px;color:var(--ink3);flex:none;max-width:35%;overflow:hidden;white-space:nowrap}
+.grades{display:flex;gap:8px;width:100%}
+.grades .btn{flex:1;line-height:1.25}
+.grades .btn small{display:block;font-family:var(--mono);font-size:10.5px;color:var(--ink3);margin-top:3px}
+.grades .g0{border-color:var(--hard);color:var(--hard)} .grades .g0 small{color:var(--hard);opacity:.8}
+.grades .g1{border-color:var(--mid);color:var(--mid)}   .grades .g1 small{color:var(--mid);opacity:.8}
+.grades .g2{border-color:var(--easy);color:var(--easy)} .grades .g2 small{color:var(--easy);opacity:.8}
 .subhead{margin:16px 0 0;padding-top:11px;border-top:1px solid var(--rule);font-family:var(--mono);
          font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink3)}
 .f label{display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;
@@ -217,6 +244,10 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .line3{flex-wrap:wrap}
   .line3 .btn{flex:1 1 auto;min-height:44px}
   .btn.big{width:100%;min-height:48px}
+  #sizeOwn{font-size:16px;min-height:44px}
+  .lessons{max-height:40vh}
+  .grades .btn{min-height:52px;padding:8px 6px;font-size:13px}
+  .planNum{flex:1 1 72px}
   .count{width:100%;text-align:right}
 
   .row{grid-template-columns:3px 20px 1fr;gap:8px;padding:12px 2px;min-height:56px}
@@ -318,10 +349,12 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
     <button class="chip" data-f="tierD">D</button>
     <button class="chip" data-f="noetym">без разбора</button>
     <button class="chip" data-f="todo">не проработаны</button>
+    <button class="chip" data-f="due">к повтору</button>
     <button class="chip reset" id="clearF">сброс</button>
   </div>
   <div class="line3">
-    <button class="btn primary big" id="startDrill">Читать по одной</button>
+    <button class="btn primary big" id="lessonBtn" hidden>Заниматься</button>
+    <button class="btn" id="startDrill">Читать по одной</button>
     <span class="spacer"></span>
     <span class="count" id="count"></span>
   </div>
@@ -354,10 +387,18 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
     <span class="drillPos" id="drillPos"></span>
   </div>
   <div class="drillBody" id="drillBody"></div>
-  <div class="drillBottom">
+  <div class="drillBottom" id="drillRead">
     <button class="btn" id="drillPrev">←</button>
     <button class="btn primary" id="drillDone">Проработал</button>
     <button class="btn" id="drillNext">→</button>
+  </div>
+  <div class="drillBottom" id="drillLearn" hidden>
+    <button class="btn primary big" id="drillShow">Показать разбор</button>
+    <div class="grades" id="drillGrades" hidden>
+      <button class="btn g0" data-g="0">Не помню<small id="gs0"></small></button>
+      <button class="btn g1" data-g="1">С трудом<small id="gs1"></small></button>
+      <button class="btn g2" data-g="2">Помню<small id="gs2"></small></button>
+    </div>
   </div>
 </div>
 
@@ -436,12 +477,14 @@ function setHas(yes){ try{ if(LS) LS.setItem(HAS, yes?"1":"0"); }catch(e){} }
 function hadCards(){ try{ return LS ? LS.getItem(HAS) : null; }catch(e){ return null; } }
 var K={ meta:"ankidash:meta", cards:"ankidash:cards:", edits:"ankidash:edits",
         status:"ankidash:status", notes:"ankidash:notes", etym:"ankidash:etym", story:"ankidash:story",
-        sent:"ankidash:sent", mtime:"ankidash:mtime", mtimes:"ankidash:mtimes", sync:"ankidash:sync" };
+        sent:"ankidash:sent", mtime:"ankidash:mtime", mtimes:"ankidash:mtimes", sync:"ankidash:sync",
+        srs:"ankidash:srs", lesson:"ankidash:lesson" };
 
 /* ---------- состояние ---------- */
 var TIER={ A:12, B:8, C:4 };
 var S={ cards:[], edits:{}, status:{}, notes:{}, etym:{}, story:{}, sent:{}, lastTask:null,
         mtime:{}, mtimes:{}, cardsAt:0, sync:{}, imports:[], deck:null,
+        srs:{}, lesson:{}, size:20,
         filters:{}, sort:"again", q:"", page:0, PAGE:60, open:null, cursor:-1,
         theme:"auto", drill:null, _vis:[], _idx:{read:{},kanji:{}}, _byId:{} };
 var $=function(s){ return document.querySelector(s); };
@@ -596,6 +639,90 @@ function tierOf(c){ return c.a>=TIER.A?"A":(c.a>=TIER.B?"B":(c.a>=TIER.C?"C":"D"
 function colorOf(c){ var t=tierOf(c); return t==="A"?"var(--hard)":(t==="B"?"var(--mid)":(t==="C"?"var(--soft)":"var(--easy)")); }
 function score(c){ return (c.a+1.5)/(c.n+5); }
 
+/* ---------- уроки: формула, разбивка, расписание ----------
+
+   Насколько карточка мешает жить. Считаем три вещи, которые есть в экспорте:
+   сколько раз провалена, какая доля провалов и насколько тяжело даётся ответ.
+   Число провалов — главное: именно оно и есть «что я фэйлю». */
+function weightOf(c){
+  var rate=c.n?c.a/c.n:0;
+  var slow=Math.min((c.t||0)/12000,1.5);          // 12 секунд ответа — уже долго
+  return c.a*(0.6+rate)*(1+slow*0.4);
+}
+/* Разбивка на уроки делается один раз и держится: иначе после каждой выгрузки
+   статистики уроки бы перетасовывались и «закрытых» было бы не собрать.
+   Новые карточки просто дописываются в конец плана. */
+function lessonSize(){ var n=+S.size||20; return n>0?n:20; }
+function assignLessons(){
+  var size=lessonSize(), used={}, maxN=0, i;
+  for(i=0;i<S.cards.length;i++){
+    var ln=S.lesson[S.cards[i].id];
+    if(ln>0){ used[ln]=(used[ln]||0)+1; if(ln>maxN) maxN=ln; }
+  }
+  var free=[];
+  for(i=0;i<S.cards.length;i++) if(!(S.lesson[S.cards[i].id]>0)) free.push(S.cards[i]);
+  if(!free.length) return 0;
+  free.sort(function(a,b){ return weightOf(b)-weightOf(a); });
+  /* сначала добиваем неполные уроки, потом заводим новые */
+  var num=1, added=0;
+  for(i=0;i<free.length;i++){
+    while(num<=maxN&&(used[num]||0)>=size) num++;
+    if(num>maxN){ maxN=num; }
+    S.lesson[free[i].id]=num; used[num]=(used[num]||0)+1; added++;
+  }
+  return added;
+}
+function lessonsList(){
+  var by={}, i;
+  for(i=0;i<S.cards.length;i++){
+    var c=S.cards[i], ln=S.lesson[c.id];
+    if(!(ln>0)) continue;
+    if(!by[ln]) by[ln]={ n:ln, cards:[], новых:0, кповтору:0, готово:0 };
+    by[ln].cards.push(c);
+    var st=S.srs[c.id];
+    if(!st) by[ln].новых++;
+    else if(dueIn(c.id)<=0) by[ln].кповтору++;
+    else by[ln].готово++;
+  }
+  return Object.keys(by).map(function(k){ return by[k]; })
+    .sort(function(a,b){ return a.n-b.n; });
+}
+/* Простое расписание в духе старого Anki: ease по умолчанию 2.5,
+   провал сбрасывает интервал и слегка снижает ease. Без FSRS. */
+var DAY=86400000;
+function today(){ var d=new Date(); d.setHours(0,0,0,0); return d.getTime(); }
+function dueIn(id){ var st=S.srs[id]; if(!st) return -1; return Math.round((st.d-today())/DAY); }
+function isDue(id){ var st=S.srs[id]; return !!st&&st.d<=today()+DAY-1; }
+function grade(id,g){
+  var st=S.srs[id]||{ i:0, e:2.5, r:0, l:0, d:today() };
+  st.i=nextInterval(st,g);
+  if(g===0){ st.l=(st.l||0)+1; st.e=Math.max(1.3,(st.e||2.5)-0.2); }
+  else if(g===1){ st.e=Math.max(1.3,(st.e||2.5)-0.15); }
+  st.r=(st.r||0)+1;
+  st.d=today()+st.i*DAY;
+  S.srs[id]=st;
+  touch(id,"srs");
+  /* карточка ушла на завтра и дальше — считаем её проработанной,
+     чтобы прежние счётчики и фильтры остались осмысленными */
+  if(st.i>=1&&S.status[id]!=="done"){ S.status[id]="done"; touch(id,"status"); }
+  return st;
+}
+function dueCards(){
+  var out=[];
+  for(var i=0;i<S.cards.length;i++){ var c=S.cards[i];
+    if(S.srs[c.id]&&isDue(c.id)) out.push(c); }
+  out.sort(function(a,b){ return (S.srs[a.id].d-S.srs[b.id].d)||(weightOf(b)-weightOf(a)); });
+  return out;
+}
+function planCounts(){
+  var novel=0, due=0, all=0;
+  for(var i=0;i<S.cards.length;i++){ var id=S.cards[i].id;
+    if(!(S.lesson[id]>0)) continue;
+    all++;
+    if(!S.srs[id]) novel++; else if(isDue(id)) due++; }
+  return { новых:novel, кповтору:due, всего:all };
+}
+
 /* ---------- файлы ---------- */
 function parseFile(file,onProgress){
   return new Promise(function(res,rej){
@@ -680,6 +807,7 @@ async function handleFiles(files){
     var stamp=new Date().toISOString().slice(0,10);
     var built=buildCards(cards.rows,cards.cols), noId=built.noId||0;
     var res=mergeCards(built,stamp);
+    assignLessons();                     // новые карточки дописываются в конец плана
     S.cardsAt=Date.now();
     S.sync.dirty=true;                   // свежий экспорт тоже надо отдать
     S.imports.unshift({ at:stamp, added:res.added, moved:res.moved });
@@ -698,8 +826,9 @@ async function handleFiles(files){
 
 /* ---------- сохранение ---------- */
 var CHUNK=300;
-function meta(){ return { v:6, at:Date.now(), chunks:Math.ceil(S.cards.length/CHUNK), deck:S.deck,
-  imports:S.imports, theme:S.theme, sort:S.sort, lastTask:S.lastTask, cardsAt:S.cardsAt||0 }; }
+function meta(){ return { v:7, at:Date.now(), chunks:Math.ceil(S.cards.length/CHUNK), deck:S.deck,
+  imports:S.imports, theme:S.theme, sort:S.sort, lastTask:S.lastTask, cardsAt:S.cardsAt||0,
+  size:lessonSize(), sizeAt:S.sizeAt||0 }; }
 async function saveMeta(){ setHas(S.cards.length>0); return await sset(K.meta,JSON.stringify(meta())); }
 /* _s — строка для поиска, её собирает buildIndex при загрузке. Хранить её незачем,
    а весит она как все словари вместе взятые. */
@@ -730,6 +859,8 @@ async function saveAll(){
   await sset(K.etym,JSON.stringify(S.etym));
   await sset(K.story,JSON.stringify(S.story));
   await sset(K.sent,JSON.stringify(S.sent));
+  await sset(K.srs,JSON.stringify(S.srs));
+  await sset(K.lesson,JSON.stringify(S.lesson));
   await sset(K.mtime,JSON.stringify(S.mtime));
   await sset(K.mtimes,JSON.stringify(S.mtimes));
   await sset(K.sync,JSON.stringify(S.sync));
@@ -743,6 +874,8 @@ async function saveTexts(){
   await sset(K.etym,JSON.stringify(S.etym));
   await sset(K.story,JSON.stringify(S.story));
   await sset(K.sent,JSON.stringify(S.sent));
+  await sset(K.srs,JSON.stringify(S.srs));
+  await sset(K.lesson,JSON.stringify(S.lesson));
   await sset(K.mtime,JSON.stringify(S.mtime));
   await sset(K.mtimes,JSON.stringify(S.mtimes));
   await sset(K.sync,JSON.stringify(S.sync));
@@ -762,6 +895,7 @@ function saveSoon(){ clearTimeout(saveT); saveT=setTimeout(async function(){
   await sset(K.edits,JSON.stringify(S.edits)); await sset(K.status,JSON.stringify(S.status));
   await sset(K.notes,JSON.stringify(S.notes)); await sset(K.etym,JSON.stringify(S.etym));
   await sset(K.story,JSON.stringify(S.story)); await sset(K.sent,JSON.stringify(S.sent));
+  await sset(K.srs,JSON.stringify(S.srs)); await sset(K.lesson,JSON.stringify(S.lesson));
   await sset(K.mtime,JSON.stringify(S.mtime)); await sset(K.mtimes,JSON.stringify(S.mtimes));
   await sset(K.sync,JSON.stringify(S.sync));
   await saveMeta();
@@ -779,6 +913,8 @@ async function reloadTexts(){
   var et=await sget(K.etym); if(et) try{ S.etym=JSON.parse(et); }catch(x){}
   var so=await sget(K.story); if(so) try{ S.story=JSON.parse(so); }catch(x){}
   var sn=await sget(K.sent); if(sn) try{ S.sent=JSON.parse(sn); }catch(x){}
+  var sr=await sget(K.srs); if(sr) try{ S.srs=JSON.parse(sr)||{}; }catch(x){}
+  var ls=await sget(K.lesson); if(ls) try{ S.lesson=JSON.parse(ls)||{}; }catch(x){}
   var mt=await sget(K.mtime); if(mt) try{ S.mtime=JSON.parse(mt); }catch(x){}
   var ms=await sget(K.mtimes); if(ms) try{ S.mtimes=JSON.parse(ms)||{}; }catch(x){}
   var a=document.activeElement;
@@ -794,6 +930,7 @@ async function loadAll(){
   var m=await sget(K.meta); if(!m) return false;
   try{ m=JSON.parse(m); }catch(e){ return false; }
   S.deck=m.deck||null; S.imports=m.imports||[]; S.theme=m.theme||"auto"; if(m.sort) S.sort=m.sort; S.lastTask=m.lastTask||null;
+  if(m.size>0) S.size=m.size; S.sizeAt=m.sizeAt||0;
   S.cardsAt=m.cardsAt||0;
   var arr=[];
   for(var c=0;c<(m.chunks||0);c++){ var s=await sget(K.cards+c); if(s){ try{ arr=arr.concat(JSON.parse(s)); }catch(e){} } }
@@ -804,6 +941,8 @@ async function loadAll(){
   var et=await sget(K.etym); if(et) try{ S.etym=JSON.parse(et); }catch(x){}
   var so=await sget(K.story); if(so) try{ S.story=JSON.parse(so); }catch(x){}
   var sn=await sget(K.sent); if(sn) try{ S.sent=JSON.parse(sn); }catch(x){}
+  var sr=await sget(K.srs); if(sr) try{ S.srs=JSON.parse(sr)||{}; }catch(x){}
+  var ls=await sget(K.lesson); if(ls) try{ S.lesson=JSON.parse(ls)||{}; }catch(x){}
   var mt=await sget(K.mtime); if(mt) try{ S.mtime=JSON.parse(mt); }catch(x){}
   var mts=await sget(K.mtimes); if(mts) try{ S.mtimes=JSON.parse(mts)||{}; }catch(x){}
   buildIndex();
@@ -887,7 +1026,8 @@ var FILTERS={
   tierC:function(c){ return c.a>=TIER.C&&c.a<TIER.B; },
   tierD:function(c){ return c.a<TIER.C; },
   noetym:function(c){ return !etymOf(c); },
-  todo:function(c){ return S.status[c.id]!=="done"; }
+  todo:function(c){ return S.status[c.id]!=="done"; },
+  due:function(c){ return isDue(c.id); }
 };
 var EXCL={ tierA:["tierB","tierC","tierD"], tierB:["tierA","tierC","tierD"], tierC:["tierA","tierB","tierD"], tierD:["tierA","tierB","tierC"] };
 function visible(){
@@ -1034,7 +1174,7 @@ function renderAll(){
   $("#intake").hidden=S.cards.length>0;
   $("#controls").hidden=!S.cards.length;
   $("#sort").value=S.sort;
-  renderHead(); renderChips(); renderList();
+  renderHead(); renderChips(); renderList(); renderPlanBtn();
 }
 
 /* ---------- чтение по одной ---------- */
@@ -1043,22 +1183,54 @@ function startDrill(list,i){
   S.drill={list:list,i:i||0}; $("#drill").hidden=false; document.body.style.overflow="hidden"; renderDrill();
 }
 function exitDrill(){ S.drill=null; $("#drill").hidden=true; document.body.style.overflow=""; renderAll(); }
+function afterText(days){
+  if(days<=0) return "сегодня";
+  if(days===1) return "завтра";
+  if(days<5) return "через "+days+" дня";
+  if(days<31) return "через "+days+" дней";
+  var m=Math.round(days/30); return "через "+m+" мес.";
+}
+/* Что будет с расписанием при каждой из кнопок — видно заранее,
+   как в старом Anki: человек выбирает осознанно, а не наугад.
+   Считаем начисто, ничего не трогая: это надпись, а не действие. */
+function nextInterval(st,g){
+  var i=st?st.i:0, e=st?(st.e||2.5):2.5;
+  if(g===0) return 0;                               // не помню — сегодня же
+  /* «с трудом» должно всё-таки расти: округление 1*1,2 давало вечную единицу */
+  if(g===1) return i?Math.max(i+1,Math.round(i*1.2)):1;
+  return Math.min(365, !i?2:Math.max(2,Math.round(i*e)));  // помню — через два дня, дальше вширь
+}
+function gradePreview(id){
+  var st=S.srs[id]||null;
+  return [0,1,2].map(function(g){ return afterText(nextInterval(st,g)); });
+}
 function renderDrill(){
   var d=S.drill; if(!d) return;
   if(d.i<0) d.i=0; if(d.i>=d.list.length) d.i=d.list.length-1;
   var c=d.list[d.i], read=byLabel(c,"чтение"), ex=exampleText(c), et=etymOf(c), st=storyOf(c);
-  $("#drillPos").textContent=(d.i+1)+" / "+d.list.length;
+  var learn=d.mode==="learn", hide=learn&&!d.shown;
+  $("#drillPos").textContent=(learn?"урок "+(d.lesson||"повтор")+" · ":"")+(d.i+1)+" / "+d.list.length;
   $("#drillFill").style.width=((d.i+1)/d.list.length*100)+"%";
+  $("#drillRead").hidden=learn; $("#drillLearn").hidden=!learn;
+  if(learn){
+    $("#drillShow").hidden=d.shown;
+    $("#drillGrades").hidden=!d.shown;
+    if(d.shown){ var pr=gradePreview(c.id);
+      $("#gs0").textContent=pr[0]; $("#gs1").textContent=pr[1]; $("#gs2").textContent=pr[2]; }
+  }
   $("#drillBody").innerHTML=
     '<div class="drillWord" lang="ja">'+esc(mainText(c))+'</div>'+
-    (read?'<div class="drillRead" lang="ja">'+esc(read)+'</div>':"")+
-    (ex?'<div class="drillSent" lang="ja">'+esc(ex)+'</div>':"")+
-    '<div class="drillStats"><span>важность '+tierOf(c)+'</span><span>'+c.a+' Again из '+c.n+'</span>'+
-      '<span>'+fmtTime(c.t)+'</span></div>'+
-    (et?foldHTML("разбор и происхождение",prose(et),"prose"):"")+
-    (st?foldHTML("интересное",prose(st),"prose"):"")+
-    (!et&&!st?'<p class="note" style="margin-top:16px">Разбора пока нет. Отберите такие карточки фильтром «без разбора» и выгрузите задание для нейросети.</p>':"")+
-    dictFolds(c,false)+simFold(c)+editFold(c);
+    (read&&!hide?'<div class="drillRead" lang="ja">'+esc(read)+'</div>':"")+
+    (hide?'<p class="note" style="margin-top:14px">Вспомните чтение и значение, потом откройте разбор.</p>':"")+
+    (ex&&!hide?'<div class="drillSent" lang="ja">'+esc(ex)+'</div>':"")+
+    (hide?"":'<div class="drillStats"><span>важность '+tierOf(c)+'</span><span>'+c.a+' Again из '+c.n+'</span>'+
+      '<span>'+fmtTime(c.t)+'</span>'+(learn&&S.srs[c.id]?'<span>повторов '+(S.srs[c.id].r||0)+'</span>':"")+'</div>')+
+    (hide?"":
+      (et?foldHTML("разбор и происхождение",prose(et),"prose",learn):"")+
+      (st?foldHTML("интересное",prose(st),"prose",learn):"")+
+      (!et&&!st?'<p class="note" style="margin-top:16px">Разбора пока нет — напишите свою зацепку ниже. '+
+        'Или соберите готовые: ⋯ → Задание для нейросети.</p>':"")+
+      dictFolds(c,false)+simFold(c)+editFold(c));
   $("#drillDone").textContent=S.status[c.id]==="done"?"✓ отмечена":"Проработал";
 }
 function drillMove(step){
@@ -1118,6 +1290,34 @@ $("#drill").addEventListener("click",function(e){
     if(c){ S.drill.list.splice(S.drill.i+1,0,c); pos=S.drill.i+1; } }
   if(pos>=0){ S.drill.i=pos; renderDrill(); $("#drillBody").scrollTop=0; }
 });
+$("#drillShow").onclick=function(){ if(!S.drill) return; S.drill.shown=true; renderDrill(); $("#drillBody").scrollTop=0; };
+$("#drillGrades").addEventListener("click",function(e){
+  var b=e.target.closest("[data-g]"); if(!b||!S.drill) return;
+  var d=S.drill, c=d.list[d.i], g=+b.dataset.g;
+  var st=grade(c.id,g);
+  saveSoon();
+  /* «не помню» — карточка вернётся в конце этого же урока */
+  if(g===0&&d.list.length<200) d.list.push(c); else d.done++;
+  d.shown=false;
+  if(d.i+1>=d.list.length) return finishLesson();
+  d.i++; renderDrill(); $("#drillBody").scrollTop=0;
+  toast(mainText(c)+" — "+afterText(st.i),1400);
+});
+function finishLesson(){
+  var d=S.drill, num=d.lesson;
+  exitDrill();
+  var again=0, list=num?S.cards.filter(function(c){ return S.lesson[c.id]===num; }):[];
+  list.forEach(function(c){ if(!S.srs[c.id]||isDue(c.id)) again++; });
+  openModal(num?"Урок "+num+" пройден":"Повтор пройден",
+    num?(again?"Осталось на потом: "+again:"Урок закрыт целиком"):"",
+    '<p class="note">'+(num&&!again
+      ? "Все карточки урока уехали на повтор — вернутся сами, когда придёт срок."
+      : "Карточки вернутся по расписанию: не помню — сегодня же, с трудом — скоро, помню — позже.")+'</p>'+
+    '<div class="acts"><button class="btn primary" id="planAgain">К урокам</button>'+
+      '<button class="btn ghost" id="planClose">Закрыть</button></div>');
+  $("#planAgain").onclick=openPlan;
+  $("#planClose").onclick=closeModal;
+}
 $("#drillPrev").onclick=function(){ drillMove(-1); };
 $("#drillNext").onclick=function(){ drillMove(1); };
 $("#drillExit").onclick=exitDrill;
@@ -1127,6 +1327,7 @@ $("#drillDone").onclick=function(){
   saveSoon(); renderDrill(); setTimeout(function(){ drillMove(1); },180);
 };
 $("#startDrill").onclick=function(){ startDrill(visible(),0); };
+$("#lessonBtn").onclick=openPlan;
 (function(){
   var x0=null,y0=null,b=$("#drillBody");
   b.addEventListener("touchstart",function(e){ x0=e.touches[0].clientX; y0=e.touches[0].clientY; },{passive:true});
@@ -1306,6 +1507,7 @@ $("#impBackup").addEventListener("change",function(e){
   fr.onload=async function(){
     try{ var j=JSON.parse(fr.result);
       S.edits=j.edits||{}; S.status=j.status||{}; S.notes=j.notes||{}; S.etym=j.etym||{}; S.story=j.story||{}; S.sent=j.sent||{}; S.lastTask=j.lastTask||null; S.mtime=j.mtime||{}; S.mtimes=j.mtimes||{};
+      S.srs=j.srs||{}; S.lesson=j.lesson||{}; if(j.size>0) S.size=j.size;
       if(j.imports) S.imports=j.imports;
       await saveAll(); closeModal(); renderAll(); toast("Восстановлено");
     }catch(x){ toast("Файл не читается"); } };
@@ -1330,8 +1532,9 @@ function deckSig(){
 }
 function deckInfo(){ return S.sync.deck||{ gist:"", sig:"", at:0, n:0, parts:0 }; }
 function syncPayload(){
-  return { v:8, at:Date.now(), edits:S.edits, status:S.status, notes:S.notes,
+  return { v:9, at:Date.now(), edits:S.edits, status:S.status, notes:S.notes,
            etym:S.etym, story:S.story, sent:S.sent, lastTask:S.lastTask,
+           srs:S.srs, lesson:S.lesson, size:S.size||20,
            mtime:S.mtime, mtimes:S.mtimes, deck:deckInfo() };
 }
 function partName(n){ return CARDPREFIX+"-"+("0"+n).slice(-2)+".json"; }
@@ -1386,8 +1589,11 @@ function remoteTime(r,key,id){ var e=lastRemote(r,key,id); return e===undefined?
 
 function mergeTexts(r){
   var added=0, updated=0, removed=0;
-  ["etym","story","notes","status","sent"].forEach(function(key){
-    var rm=r[key]||{}, mine=S[key];
+  /* srs и lesson — не строки, а объекты и числа: сравниваем их как есть */
+  ["etym","story","notes","status","sent","srs","lesson"].forEach(function(key){
+    var rm=r[key]||{}, mine=S[key]||(S[key]={});
+    var same=function(a,b){ return typeof a==="object"||typeof b==="object"
+      ? JSON.stringify(a)===JSON.stringify(b) : a===b; };
     Object.keys(rm).forEach(function(id){
       var rv=rm[id]; if(rv==null||rv==="") return;
       var lv=mine[id];
@@ -1397,7 +1603,7 @@ function mergeTexts(r){
         if(lx===undefined||remoteTime(r,key,id)>=lx){ mine[id]=rv; added++; }
         return;
       }
-      if(lv!==rv&&remoteTime(r,key,id)>localTime(key,id)){ mine[id]=rv; updated++; }
+      if(!same(lv,rv)&&remoteTime(r,key,id)>localTime(key,id)){ mine[id]=rv; updated++; }
     });
     /* стёрли на другом устройстве — стираем и здесь. Только по точному времени поля,
        иначе старая версия без mtimes снесла бы всё подряд. */
@@ -1424,6 +1630,7 @@ function mergeTexts(r){
     Object.keys(rm).forEach(function(id){ if((rm[id]||0)>(S.mtimes[key][id]||0)) S.mtimes[key][id]=rm[id]; });
   });
   if(r.lastTask&&(!S.lastTask||r.lastTask.at>S.lastTask.at)) S.lastTask=r.lastTask;
+  if(r.size>0&&(r.at||0)>(S.sizeAt||0)){ S.size=r.size; S.sizeAt=r.at||0; }
   return { added:added, updated:updated, removed:removed };
 }
 /* колода из хранилища: новых карточек добавляем всегда, цифры перебиваем только
@@ -1755,10 +1962,101 @@ function openSync(){
   $("#syncCheck").onclick=async function(){ await save(); await syncCheck(); };
 }
 
+/* ---------- уроки ---------- */
+function planLine(){
+  var p=planCounts();
+  if(!p.всего) return "";
+  if(p.новых||p.кповтору){
+    var part=[];
+    if(p.новых) part.push(p.новых+" новых");
+    if(p.кповтору) part.push(p.кповтору+" к повтору");
+    return part.join(" · ");
+  }
+  return "на сегодня всё";
+}
+function renderPlanBtn(){
+  var b=$("#lessonBtn"); if(!b) return;
+  var line=planLine();
+  b.hidden=!S.cards.length;
+  b.innerHTML='Заниматься'+(line?'<small>'+esc(line)+'</small>':"");
+}
+function openPlan(){
+  assignLessons();
+  var list=lessonsList(), p=planCounts(), size=lessonSize();
+  var sizes=[10,20,30,50].map(function(x){
+    return '<button class="chip'+(x===size?" on":"")+'" data-size="'+x+'">'+x+'</button>'; }).join("");
+  var closed=0;
+  list.forEach(function(l){ if(l.готово===l.cards.length) closed++; });
+  var body=
+    '<p class="note">Карточки разложены по урокам от самых тяжёлых к лёгким: '+
+      'считается число провалов, доля провалов и время ответа. '+
+      'Разбивка держится — новые карточки дописываются в конец.</p>'+
+    '<div class="acts" style="margin-top:10px"><span class="note" style="margin:0">В уроке карточек:</span>'+sizes+
+      '<input id="sizeOwn" type="number" min="1" max="200" value="'+size+'" '+
+      'style="width:74px" aria-label="своё число"></div>'+
+    '<div class="planTop">'+
+      '<div class="planNum"><b>'+p.новых+'</b>новых</div>'+
+      '<div class="planNum"><b>'+p.кповтору+'</b>к повтору</div>'+
+      '<div class="planNum"><b>'+closed+' / '+list.length+'</b>уроков закрыто</div>'+
+    '</div>'+
+    '<div class="acts">'+
+      (p.кповтору?'<button class="btn primary" id="goDue">Повторить '+p.кповтору+'</button>':"")+
+      (p.новых?'<button class="btn'+(p.кповтору?"":" primary")+'" id="goNext">Следующий урок</button>':"")+
+      (!p.новых&&!p.кповтору?'<p class="note" style="margin:0">На сегодня всё пройдено. Возвращайтесь завтра — или откройте любой урок ниже.</p>':"")+
+    '</div>'+
+    '<div class="lessons">'+list.map(function(l){
+      var done=l.готово, all=l.cards.length, pct=Math.round(done/all*100);
+      var state=done===all?"закрыт":(l.новых===all?"не начат":"в работе");
+      return '<button class="lesson'+(done===all?" done":"")+'" data-lesson="'+l.n+'">'+
+        '<span class="lnum">'+l.n+'</span>'+
+        '<span class="lmain"><span class="ltitle">Урок '+l.n+'<span class="lstate">'+state+'</span></span>'+
+        '<span class="lbar"><i style="width:'+pct+'%"></i></span>'+
+        '<span class="lsub">'+all+' карточек'+
+          (l.кповтору?' · '+l.кповтору+' к повтору':"")+
+          (l.новых&&l.новых<all?' · '+l.новых+' новых':"")+'</span></span>'+
+        '<span class="lword" lang="ja">'+esc(mainText(l.cards[0]).slice(0,8))+'</span></button>';
+    }).join("")+'</div>';
+  openModal("Уроки", S.cards.length+" карточек в плане", body);
+
+  var setSize=async function(v){
+    v=Math.max(1,Math.min(200,Math.round(v)||20));
+    if(v===lessonSize()) return;
+    S.size=v; S.sizeAt=Date.now(); S.lesson={};      // план пересобирается заново
+    assignLessons(); await saveAll(); S.sync.dirty=true; openPlan();
+  };
+  $("#modalBody").onclick=function(e){
+    var b=e.target.closest("[data-size]"); if(b){ setSize(+b.dataset.size); return; }
+    var l=e.target.closest("[data-lesson]"); if(l){ startLesson(+l.dataset.lesson); return; }
+  };
+  var own=$("#sizeOwn"); if(own) own.addEventListener("change",function(){ setSize(+own.value); });
+  var d=$("#goDue"); if(d) d.onclick=function(){ startDue(); };
+  var g=$("#goNext"); if(g) g.onclick=function(){
+    var first=null;
+    lessonsList().forEach(function(l){ if(!first&&l.новых) first=l.n; });
+    if(first) startLesson(first); else toast("Новых уроков нет");
+  };
+}
+function startLesson(num){
+  var list=S.cards.filter(function(c){ return S.lesson[c.id]===num; });
+  if(!list.length){ toast("Урок пуст"); return; }
+  list.sort(function(a,b){ return weightOf(b)-weightOf(a); });
+  closeModal();
+  S.drill={ list:list, i:0, mode:"learn", lesson:num, shown:false, done:0 };
+  $("#drill").hidden=false; document.body.style.overflow="hidden"; renderDrill();
+}
+function startDue(){
+  var list=dueCards();
+  if(!list.length){ toast("К повтору сегодня ничего нет"); return; }
+  closeModal();
+  S.drill={ list:list, i:0, mode:"learn", lesson:0, shown:false, done:0 };
+  $("#drill").hidden=false; document.body.style.overflow="hidden"; renderDrill();
+}
+
 /* ---------- меню ---------- */
 function openMenu(){
   openModal("Ещё", S.cards.length?(S.cards.length+" карточек в приложении"):"",
     '<div class="menu">'+
+      '<button class="item" data-m="plan">Уроки<small>план по самым тяжёлым карточкам</small></button>'+
       '<button class="item" data-m="sync">Синхронизация между устройствами<small>'+
         (S.sync.gist?"обмен идёт сам; последняя отправка: "+esc(S.sync.at||"ещё не было"):"настроить обмен")+'</small></button>'+
       '<button class="item" data-m="add">Добавить файл<small>новый экспорт или ответ нейросети</small></button>'+
@@ -1776,6 +2074,7 @@ function openMenu(){
   $("#modalBody").onclick=function(e){
     var b=e.target.closest("[data-m]"); if(!b) return;
     var m=b.dataset.m;
+    if(m==="plan") openPlan();
     if(m==="add") $("#fileinMenu").click();
     if(m==="task") openTask();
     if(m==="cid") copyCid();
@@ -1784,8 +2083,9 @@ function openMenu(){
       S.sent={}; S.lastTask=null; saveSoon(); closeModal(); renderList();
       toast("Отметки о выгрузке сброшены"); }
     if(m==="texts"){ exportTexts(); closeModal(); }
-    if(m==="backup"){ download("anki_backup.json",JSON.stringify({v:6,edits:S.edits,status:S.status,notes:S.notes,
-      etym:S.etym,story:S.story,sent:S.sent,lastTask:S.lastTask,mtime:S.mtime,mtimes:S.mtimes,imports:S.imports},null,1),"application/json"); closeModal(); }
+    if(m==="backup"){ download("anki_backup.json",JSON.stringify({v:7,edits:S.edits,status:S.status,notes:S.notes,
+      etym:S.etym,story:S.story,sent:S.sent,lastTask:S.lastTask,mtime:S.mtime,mtimes:S.mtimes,imports:S.imports,
+      srs:S.srs,lesson:S.lesson,size:lessonSize()},null,1),"application/json"); closeModal(); }
     if(m==="restore") $("#impBackup").click();
     if(m==="sync") openSync();
     if(m==="help") openHelp();
@@ -1796,6 +2096,12 @@ function openHelp(){
   openModal("Как пользоваться","",
     '<div style="font-size:13.5px;line-height:1.8">'+
     '<p><b>Буквы слева</b> — сколько раз вы провалили карточку: <b>A</b> 12 и больше, <b>B</b> от 8 (с этого числа Anki считает карточку личем), <b>C</b> 4–7, <b>D</b> до трёх.</p>'+
+    '<p style="margin-top:8px"><b>Уроки.</b> Карточки разложены по урокам от самых тяжёлых к лёгким: '+
+      'считаются число провалов, их доля и время ответа. Размер урока свой — 10, 20, 50, любой. '+
+      'В уроке слово показывается без ответа: сначала попытка вспомнить, потом разбор. '+
+      'Дальше три кнопки — они же назначают, когда карточка вернётся: '+
+      '<b>не помню</b> — сегодня же, <b>с трудом</b> — завтра и медленно вширь, <b>помню</b> — через два дня, '+
+      'потом всё реже. Расписание простое, как в старом Anki, и своё: в самой Anki ничего не меняется.</p>'+
     '<p style="margin-top:8px"><b>Круг работы:</b> отобрать фильтром «без разбора» → «Задание для нейросети» → скачать JSON → отдать нейросети с промптом → её ответ перетащить обратно сюда → читать в режиме «Читать по одной».</p>'+
     '<p style="margin-top:8px"><b>Клавиши:</b> <span class="kbd">/</span> поиск · <span class="kbd">j</span><span class="kbd">k</span> по списку · '+
     '<span class="kbd">Enter</span> раскрыть · <span class="kbd">d</span> отметить · <span class="kbd">s</span> читать по одной · <span class="kbd">Esc</span> закрыть. '+
@@ -1811,7 +2117,8 @@ function confirmWipe(){
   $("#wipeYes").onclick=async function(){
     var ks=await slist("ankidash:");
     for(var i=0;i<ks.length;i++) await sdel(ks[i]);
-    S.cards=[]; S.edits={}; S.status={}; S.notes={}; S.etym={}; S.story={}; S.sent={}; S.lastTask=null; S.mtime={}; S.imports=[]; S.deck=null;
+    S.cards=[]; S.edits={}; S.status={}; S.notes={}; S.etym={}; S.story={}; S.sent={}; S.lastTask=null;
+    S.mtime={}; S.mtimes={}; S.srs={}; S.lesson={}; S.imports=[]; S.deck=null;
     S.open=null; S.filters={}; setHas(false);
     closeModal(); renderAll(); $("#progress").textContent=""; toast("Очищено");
   };
@@ -1895,6 +2202,7 @@ window.addEventListener("appinstalled",function(){ $("#install").hidden=true; to
   await initStorage();
   var sy=await sget(K.sync); if(sy) try{ S.sync=JSON.parse(sy); }catch(x){}
   var ok=await loadAll();
+  if(assignLessons()) saveSoon();        // колода из старой версии: плана ещё нет
   setHas(S.cards.length>0);
   shortSort(); applyTheme(); renderAll();
   if(MODE==="memory") $("#progress").textContent="Хранилище недоступно: тексты будут жить только до перезагрузки.";
