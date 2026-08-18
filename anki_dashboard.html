@@ -52,7 +52,9 @@ body{font-family:var(--ui);line-height:1.45;-webkit-text-size-adjust:100%}
 #root{max-width:940px;margin:0 auto;padding:20px 18px calc(80px + env(safe-area-inset-bottom))}
 h1{margin:0;font-size:19px;font-weight:650;letter-spacing:-.01em}
 p{margin:0}
-.note{font-size:12px;color:var(--ink3)}
+.note{font-size:12px;color:var(--ink3);font-family:var(--ui);line-height:1.55}
+.fold .body .note,.fold .body .acts,.fold .body label,.fold .body input,
+.fold .body summary,.fold .body button{font-family:var(--ui)}
 
 .top{display:flex;justify-content:space-between;align-items:center;gap:14px;padding-bottom:12px;border-bottom:2px solid var(--ink)}
 .brand{display:flex;gap:11px;align-items:center;min-width:0}
@@ -131,7 +133,8 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .ltitle{display:flex;gap:8px;align-items:baseline;font-size:14px}
 .lstate{font-family:var(--mono);font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink3)}
 .lbar{display:block;height:3px;border-radius:2px;background:var(--rule);margin:5px 0 4px;overflow:hidden}
-.lbar i{display:block;height:100%;background:var(--easy)}
+.lbar i{display:block;height:100%;background:var(--accent);transition:width .3s}
+.lesson.done .lbar i{background:var(--easy)}
 .lsub{font-family:var(--mono);font-size:11px;color:var(--ink3)}
 .lword{font-family:var(--jp);font-size:15px;color:var(--ink3);flex:none;max-width:35%;overflow:hidden;white-space:nowrap}
 .grades{display:flex;gap:8px;width:100%}
@@ -147,6 +150,22 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .simdiff{width:100%;margin-top:6px;font:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--rule);
          border-radius:3px;background:var(--paper);color:var(--ink);resize:vertical}
 .simdiff.filled{border-color:var(--accent)}
+.tally{margin-top:14px;border-top:1px solid var(--rule);padding-top:12px}
+.tallyLine{font-size:13px;color:var(--ink3);line-height:1.6}
+.tallyLine b{color:var(--ink);font-weight:600}
+.tbars{display:flex;gap:3px;align-items:flex-end;height:56px;margin:10px 0 4px}
+.tbar{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;min-width:0}
+.tbar i{display:block;width:100%;background:var(--rule);border-radius:2px 2px 0 0;transition:height .3s}
+.tbar.now i{background:var(--accent)}
+.tbar span{font-family:var(--mono);font-size:9px;color:var(--ink3);margin-top:3px}
+.tallyTab{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11.5px;margin-top:4px}
+.tallyTab th{text-align:left;font-weight:400;color:var(--ink3);letter-spacing:.04em;
+             text-transform:uppercase;font-size:10px;padding:4px 6px 6px 0;border-bottom:1px solid var(--rule)}
+.tallyTab td{padding:5px 6px 5px 0;border-bottom:1px solid var(--rule);color:var(--ink2)}
+.tallyTab tr:last-child td{border-bottom:0}
+.bigline{font-family:var(--serif);font-size:19px;line-height:1.4;margin:2px 0 10px;color:var(--ink)}
+@keyframes doneIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.sheet.calm{animation:doneIn .34s ease-out}
 .backTag{font-family:var(--mono);font-size:11px;letter-spacing:.04em;text-transform:uppercase;
          color:var(--accent);margin:0 0 14px}
 .say{font:inherit;font-size:15px;line-height:1;border:1px solid var(--rule);border-radius:3px;
@@ -500,13 +519,13 @@ function hadCards(){ try{ return LS ? LS.getItem(HAS) : null; }catch(e){ return 
 var K={ meta:"ankidash:meta", cards:"ankidash:cards:", edits:"ankidash:edits",
         status:"ankidash:status", notes:"ankidash:notes", etym:"ankidash:etym", story:"ankidash:story",
         sent:"ankidash:sent", mtime:"ankidash:mtime", mtimes:"ankidash:mtimes", sync:"ankidash:sync",
-        srs:"ankidash:srs", lesson:"ankidash:lesson", diff:"ankidash:diff" };
+        srs:"ankidash:srs", lesson:"ankidash:lesson", diff:"ankidash:diff", log:"ankidash:log" };
 
 /* ---------- состояние ---------- */
 var TIER={ A:12, B:8, C:4 };
 var S={ cards:[], edits:{}, status:{}, notes:{}, etym:{}, story:{}, sent:{}, lastTask:null,
         mtime:{}, mtimes:{}, cardsAt:0, sync:{}, imports:[], deck:null,
-        srs:{}, lesson:{}, diff:{}, size:20, back:true, voice:false,
+        srs:{}, lesson:{}, diff:{}, log:{}, size:20, back:true, voice:false, sound:true, devId:"",
         filters:{}, sort:"again", q:"", page:0, PAGE:60, open:null, cursor:-1,
         theme:"auto", drill:null, _vis:[], _idx:{read:{},kanji:{}}, _byId:{} };
 var $=function(s){ return document.querySelector(s); };
@@ -690,6 +709,40 @@ function sayBtn(text){
 }
 try{ if(window.speechSynthesis){ pickVoice(); speechSynthesis.onvoiceschanged=pickVoice; } }catch(e){}
 
+/* ---------- сигналы ----------
+
+   Три коротких звука, больше не нужно. Синтезируем на месте: ни одного файла,
+   ноль веса, работает офлайн. Гармонически сложный звук читается как «важно» —
+   для подтверждения рутинного действия он не годится, поэтому тут чистые тоны,
+   тихо и коротко. Провал звучит нейтрально, а не наказующе. */
+var actx=null;
+function audio(){
+  if(actx) return actx;
+  try{ var C=window.AudioContext||window.webkitAudioContext; if(C) actx=new C(); }catch(e){ actx=null; }
+  return actx;
+}
+function tone(freq,start,dur,vol){
+  var a=audio(); if(!a) return;
+  var o=a.createOscillator(), g=a.createGain();
+  o.type="sine"; o.frequency.value=freq;
+  var t=a.currentTime+start;
+  g.gain.setValueAtTime(0,t);
+  g.gain.linearRampToValueAtTime(vol,t+0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  o.connect(g); g.connect(a.destination);
+  o.start(t); o.stop(t+dur+0.02);
+}
+var SOUNDS={
+  ok:   function(){ tone(660,0,0.09,0.05); tone(880,0.045,0.10,0.045); },
+  miss: function(){ tone(300,0,0.11,0.045); },
+  done: function(){ tone(523.25,0,0.16,0.05); tone(659.25,0.10,0.16,0.05); tone(783.99,0.20,0.34,0.055); }
+};
+function ding(name){
+  if(S.sound===false) return;
+  var f=SOUNDS[name]; if(!f) return;
+  try{ var a=audio(); if(a&&a.state==="suspended") a.resume(); f(); }catch(e){}
+}
+
 /* ---------- уроки: формула, разбивка, расписание ----------
 
    Насколько карточка мешает жить. Считаем три вещи, которые есть в экспорте:
@@ -744,8 +797,17 @@ var DAY=86400000;
 function today(){ var d=new Date(); d.setHours(0,0,0,0); return d.getTime(); }
 function dueIn(id){ var st=S.srs[id]; if(!st) return -1; return Math.round((st.d-today())/DAY); }
 function isDue(id){ var st=S.srs[id]; return !!st&&st.d<=today()+DAY-1; }
+/* Сколько веса приносит ответ. Повтор дешевле первого взятия, провал — ноль,
+   но карточка вернётся, и вес придёт тогда. */
+function gainOf(c,g,был){
+  if(g===0) return 0;
+  return Math.round(weightOf(c)*(g===1?0.6:1)*(был?0.6:1));
+}
 function grade(id,g){
   var st=S.srs[id]||{ i:0, e:2.5, r:0, l:0, d:today() };
+  var был=!!S.srs[id], держит=был&&(st.i||0)>=7&&isDue(id)&&g>0;
+  var c=S._byId[id];
+  if(c) logAdd({ w:gainOf(c,g,был), n:g>0?1:0, h:держит?1:0 });
   st.i=nextInterval(st,g);
   if(g===0){ st.l=(st.l||0)+1; st.e=Math.max(1.3,(st.e||2.5)-0.2); }
   else if(g===1){ st.e=Math.max(1.3,(st.e||2.5)-0.15); }
@@ -765,12 +827,128 @@ function scheduleIfNew(id){
   S.srs[id]={ i:2, e:2.5, r:1, l:0, d:today()+2*DAY };
   touch(id,"srs");
 }
+/* ---------- дневник ----------
+
+   Опыт здесь — не начисление, а измерение: сколько тяжести снято с колоды.
+   Вес тот же, по которому карточки разложены на уроки, поэтому число нельзя
+   нафармить на лёгком и оно не врёт. Провал не отнимает — просто пока не даёт:
+   карточка вернётся в этом же уроке, и вес придёт, когда вы её возьмёте.
+
+   Записи дневника помечены и датой, и устройством: два телефона за один день
+   пишут в разные строки, поэтому при обмене ничего не затирается и не двоится. */
+function dayKey(t){ var d=new Date(t||Date.now());
+  return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2); }
+function devId(){
+  if(!S.devId){ S.devId=Math.random().toString(36).slice(2,8); saveMeta(); }
+  return S.devId;
+}
+function logKey(){ return dayKey()+"|"+devId(); }
+function logAdd(add){
+  var k=logKey(), e=S.log[k]||{ w:0, n:0, l:0, h:0 };
+  e.w=(e.w||0)+(add.w||0); e.n=(e.n||0)+(add.n||0);
+  e.l=(e.l||0)+(add.l||0); e.h=(e.h||0)+(add.h||0);
+  S.log[k]=e; touch(k,"log");
+  /* дневник не должен расти бесконечно */
+  var keys=Object.keys(S.log);
+  if(keys.length>400){ keys.sort(); for(var i=0;i<keys.length-400;i++) delete S.log[keys[i]]; }
+}
+/* суммируем по дню всё, что записали разные устройства */
+function logByDay(){
+  var by={};
+  Object.keys(S.log).forEach(function(k){
+    var d=k.split("|")[0], e=S.log[k]||{};
+    if(!by[d]) by[d]={ день:d, w:0, n:0, l:0, h:0 };
+    by[d].w+=e.w||0; by[d].n+=e.n||0; by[d].l+=e.l||0; by[d].h+=e.h||0;
+  });
+  return by;
+}
+function lastDays(k){
+  var by=logByDay(), out=[], t=Date.now();
+  for(var i=k-1;i>=0;i--){
+    var d=dayKey(t-i*DAY);
+    out.push(by[d]||{ день:d, w:0, n:0, l:0, h:0 });
+  }
+  return out;
+}
+/* Сколько дней подряд были занятия. Показываем только когда есть,
+   и никогда не показываем потерю: серия должна тянуть, а не пугать. */
+function streak(){
+  var by=logByDay(), k=0, t=Date.now();
+  if(!(by[dayKey(t)]&&by[dayKey(t)].n)) t-=DAY;      // сегодня ещё не поздно
+  while(true){ var e=by[dayKey(t)]; if(!e||!e.n) break; k++; t-=DAY; }
+  return k;
+}
+function totalWeight(){
+  var w=0; Object.keys(S.log).forEach(function(k){ w+=(S.log[k].w||0); });
+  return Math.round(w);
+}
+/* Рекорд не хранится: он выводится из данных, значит не может разойтись с ними */
+function heaviestDone(){
+  var best=null;
+  for(var i=0;i<S.cards.length;i++){ var c=S.cards[i], st=S.srs[c.id];
+    if(!st||!st.r) continue;
+    if(!best||weightOf(c)>weightOf(best)) best=c; }
+  return best;
+}
+/* Выданный аванс. План не должен начинаться с нуля: всё, что вы уже отмечали
+   проработанным до появления уроков, — это сделанная работа, и она засчитывается.
+   Возвраты разносим на три недели, иначе назавтра прилетело бы всё разом. */
+function endowProgress(){
+  var k=0, made=0;
+  for(var i=0;i<S.cards.length;i++){
+    var id=S.cards[i].id;
+    if(S.status[id]!=="done"||S.srs[id]) continue;
+    var iv=7+(k%21); k++;
+    S.srs[id]={ i:iv, e:2.5, r:1, l:0, d:today()+iv*DAY };
+    touch(id,"srs"); made++;
+  }
+  return made;
+}
 function dueCards(){
   var out=[];
   for(var i=0;i<S.cards.length;i++){ var c=S.cards[i];
     if(S.srs[c.id]&&isDue(c.id)) out.push(c); }
   out.sort(function(a,b){ return (S.srs[a.id].d-S.srs[b.id].d)||(weightOf(b)-weightOf(a)); });
   return out;
+}
+/* Прогноз по своему же темпу за последнюю неделю — это планирование,
+   а не давление: цифра сообщает, а ничего не требует. */
+/* Понедельничный итог: один раз за неделю, тихо, без требований. */
+function weekKey(t){
+  var d=new Date(t||Date.now());
+  d.setHours(0,0,0,0);
+  d.setDate(d.getDate()+4-(d.getDay()||7));
+  var y0=new Date(d.getFullYear(),0,1);
+  return d.getFullYear()+"-"+Math.ceil((((d-y0)/DAY)+1)/7);
+}
+function weekSummary(){
+  var cur=weekKey();
+  if(S.week===cur) return;
+  var was=S.week; S.week=cur; saveMeta();
+  if(!was) return;                                  // первая неделя — молчим
+  var by=logByDay(), w=0, n=0, l=0;
+  Object.keys(by).forEach(function(d){
+    if(weekKey(new Date(d+"T12:00:00").getTime())!==was) return;
+    var e=by[d]; w+=e.w; n+=e.n; l+=e.l;
+  });
+  if(!n) return;
+  toast("На прошлой неделе: "+скл(l,"урок","урока","уроков")+", "+
+        скл(n,"карточка","карточки","карточек")+", снято веса "+w, 6000);
+}
+function paceForecast(){
+  var d=lastDays(7), sum=0, дней=0;
+  d.forEach(function(x){ sum+=x.n; if(x.n) дней++; });
+  if(!sum) return null;
+  var вдень=sum/7, p=planCounts();
+  if(!p.новых||вдень<=0) return null;
+  var надо=Math.ceil(p.новых/вдень);
+  if(надо>720) return null;
+  var t=new Date(Date.now()+надо*DAY);
+  return { дней:надо, когда:t.toLocaleDateString("ru-RU",{day:"numeric",month:"long"}) };
+}
+function tierACount(){
+  var k=0; for(var i=0;i<S.cards.length;i++) if(tierOf(S.cards[i])==="A") k++;
+  return k;
 }
 function planCounts(){
   var novel=0, due=0, all=0;
@@ -868,7 +1046,7 @@ async function handleFiles(files){
     assignLessons();                     // новые карточки дописываются в конец плана
     S.cardsAt=Date.now();
     S.sync.dirty=true;                   // свежий экспорт тоже надо отдать
-    S.imports.unshift({ at:stamp, added:res.added, moved:res.moved });
+    S.imports.unshift({ at:stamp, added:res.added, moved:res.moved, a:tierACount() });
     S.imports=S.imports.slice(0,20);
     buildIndex();
     prog.textContent="Сохраняю…";
@@ -886,7 +1064,8 @@ async function handleFiles(files){
 var CHUNK=300;
 function meta(){ return { v:7, at:Date.now(), chunks:Math.ceil(S.cards.length/CHUNK), deck:S.deck,
   imports:S.imports, theme:S.theme, sort:S.sort, lastTask:S.lastTask, cardsAt:S.cardsAt||0,
-  size:lessonSize(), sizeAt:S.sizeAt||0, back:S.back!==false, voice:!!S.voice }; }
+  size:lessonSize(), sizeAt:S.sizeAt||0, back:S.back!==false, voice:!!S.voice,
+  sound:S.sound!==false, devId:S.devId||"", week:S.week||"" }; }
 async function saveMeta(){ setHas(S.cards.length>0); return await sset(K.meta,JSON.stringify(meta())); }
 /* _s — строка для поиска, её собирает buildIndex при загрузке. Хранить её незачем,
    а весит она как все словари вместе взятые. */
@@ -920,6 +1099,7 @@ async function saveAll(){
   await sset(K.srs,JSON.stringify(S.srs));
   await sset(K.lesson,JSON.stringify(S.lesson));
   await sset(K.diff,JSON.stringify(S.diff));
+  await sset(K.log,JSON.stringify(S.log));
   await sset(K.mtime,JSON.stringify(S.mtime));
   await sset(K.mtimes,JSON.stringify(S.mtimes));
   await sset(K.sync,JSON.stringify(S.sync));
@@ -936,6 +1116,7 @@ async function saveTexts(){
   await sset(K.srs,JSON.stringify(S.srs));
   await sset(K.lesson,JSON.stringify(S.lesson));
   await sset(K.diff,JSON.stringify(S.diff));
+  await sset(K.log,JSON.stringify(S.log));
   await sset(K.mtime,JSON.stringify(S.mtime));
   await sset(K.mtimes,JSON.stringify(S.mtimes));
   await sset(K.sync,JSON.stringify(S.sync));
@@ -956,7 +1137,7 @@ function saveSoon(){ clearTimeout(saveT); saveT=setTimeout(async function(){
   await sset(K.notes,JSON.stringify(S.notes)); await sset(K.etym,JSON.stringify(S.etym));
   await sset(K.story,JSON.stringify(S.story)); await sset(K.sent,JSON.stringify(S.sent));
   await sset(K.srs,JSON.stringify(S.srs)); await sset(K.lesson,JSON.stringify(S.lesson));
-  await sset(K.diff,JSON.stringify(S.diff));
+  await sset(K.diff,JSON.stringify(S.diff)); await sset(K.log,JSON.stringify(S.log));
   await sset(K.mtime,JSON.stringify(S.mtime)); await sset(K.mtimes,JSON.stringify(S.mtimes));
   await sset(K.sync,JSON.stringify(S.sync));
   await saveMeta();
@@ -977,6 +1158,7 @@ async function reloadTexts(){
   var sr=await sget(K.srs); if(sr) try{ S.srs=JSON.parse(sr)||{}; }catch(x){}
   var ls=await sget(K.lesson); if(ls) try{ S.lesson=JSON.parse(ls)||{}; }catch(x){}
   var df=await sget(K.diff); if(df) try{ S.diff=JSON.parse(df)||{}; }catch(x){}
+  var lg=await sget(K.log); if(lg) try{ S.log=JSON.parse(lg)||{}; }catch(x){}
   var mt=await sget(K.mtime); if(mt) try{ S.mtime=JSON.parse(mt); }catch(x){}
   var ms=await sget(K.mtimes); if(ms) try{ S.mtimes=JSON.parse(ms)||{}; }catch(x){}
   var a=document.activeElement;
@@ -993,7 +1175,8 @@ async function loadAll(){
   try{ m=JSON.parse(m); }catch(e){ return false; }
   S.deck=m.deck||null; S.imports=m.imports||[]; S.theme=m.theme||"auto"; if(m.sort) S.sort=m.sort; S.lastTask=m.lastTask||null;
   if(m.size>0) S.size=m.size; S.sizeAt=m.sizeAt||0;
-  S.back=m.back!==false; S.voice=!!m.voice;
+  S.back=m.back!==false; S.voice=!!m.voice; S.sound=m.sound!==false;
+  S.devId=m.devId||""; S.week=m.week||"";
   S.cardsAt=m.cardsAt||0;
   var arr=[];
   for(var c=0;c<(m.chunks||0);c++){ var s=await sget(K.cards+c); if(s){ try{ arr=arr.concat(JSON.parse(s)); }catch(e){} } }
@@ -1007,6 +1190,7 @@ async function loadAll(){
   var sr=await sget(K.srs); if(sr) try{ S.srs=JSON.parse(sr)||{}; }catch(x){}
   var ls=await sget(K.lesson); if(ls) try{ S.lesson=JSON.parse(ls)||{}; }catch(x){}
   var df=await sget(K.diff); if(df) try{ S.diff=JSON.parse(df)||{}; }catch(x){}
+  var lg=await sget(K.log); if(lg) try{ S.log=JSON.parse(lg)||{}; }catch(x){}
   var mt=await sget(K.mtime); if(mt) try{ S.mtime=JSON.parse(mt); }catch(x){}
   var mts=await sget(K.mtimes); if(mts) try{ S.mtimes=JSON.parse(mts)||{}; }catch(x){}
   buildIndex();
@@ -1304,6 +1488,11 @@ function backHint(c){
   if(ex) h+='<div class="drillSent" lang="ja">'+esc(maskWord(ex,w))+'</div>';
   return h;
 }
+function скл(n,од,дв,мн){
+  var a=Math.abs(n)%100, b=a%10;
+  var сл=(a>10&&a<20)?мн:(b===1?од:(b>=2&&b<=4?дв:мн));
+  return n+" "+сл;
+}
 function afterText(days){
   if(days<=0) return "сегодня";
   if(days===1) return "завтра";
@@ -1330,7 +1519,12 @@ function renderDrill(){
   if(d.i<0) d.i=0; if(d.i>=d.list.length) d.i=d.list.length-1;
   var c=d.list[d.i], read=byLabel(c,"чтение"), ex=exampleText(c), et=etymOf(c), st=storyOf(c);
   var learn=d.mode==="learn", hide=learn&&!d.shown, back=learn&&isBack(c);
-  $("#drillPos").textContent=(learn?"урок "+(d.lesson||"повтор")+" · ":"")+(d.i+1)+" / "+d.list.length;
+  /* ближе к концу считаем не пройденное, а остаток: к цели идут быстрее,
+     когда видно, сколько до неё */
+  var осталось=d.list.length-d.i;
+  $("#drillPos").textContent=(learn&&d.i>=Math.floor(d.list.length/2)&&осталось>1)
+    ? "осталось "+осталось
+    : (learn?"урок "+(d.lesson||"повтор")+" · ":"")+(d.i+1)+" / "+d.list.length;
   $("#drillFill").style.width=((d.i+1)/d.list.length*100)+"%";
   $("#drillRead").hidden=learn; $("#drillLearn").hidden=!learn;
   if(learn){
@@ -1430,7 +1624,12 @@ $("#drillShow").onclick=function(){
 $("#drillGrades").addEventListener("click",function(e){
   var b=e.target.closest("[data-g]"); if(!b||!S.drill) return;
   var d=S.drill, c=d.list[d.i], g=+b.dataset.g;
+  var былВ=!!S.srs[c.id], держал=былВ&&(S.srs[c.id].i||0)>=7&&isDue(c.id)&&g>0;
+  if(!d.итог) d.итог={ w:0, a:0, держит:0, взято:0 };
+  if(g>0){ d.итог.w+=gainOf(c,g,былВ); d.итог.взято++;
+    if(tierOf(c)==="A") d.итог.a++; if(держал) d.итог.держит++; }
   var st=grade(c.id,g);
+  ding(g===0?"miss":"ok");
   saveSoon();
   /* «не помню» — карточка вернётся в конце этого же урока */
   if(g===0&&d.list.length<200) d.list.push(c); else d.done++;
@@ -1440,17 +1639,29 @@ $("#drillGrades").addEventListener("click",function(e){
   toast(mainText(c)+" — "+afterText(st.i),1400);
 });
 function finishLesson(){
-  var d=S.drill, num=d.lesson;
+  var d=S.drill, num=d.lesson, it=d.итог||{ w:0, a:0, держит:0, взято:0 };
+  ding("done");
+  if(num) logAdd({ l:1 });
   exitDrill();
   var again=0, list=num?S.cards.filter(function(c){ return S.lesson[c.id]===num; }):[];
   list.forEach(function(c){ if(!S.srs[c.id]||isDue(c.id)) again++; });
+  /* говорим, что сдвинулось, а не сколько начислено: число рядом и мелким */
+  var фраза=it.a
+    ? скл(it.a,"слово","слова","слов")+" из A "+(it.a===1?"ушло":"ушли")+" на повтор"
+    : (it.взято?скл(it.взято,"карточка","карточки","карточек")+" "+(it.взято===1?"ушла":"ушли")+" на повтор"
+                :"Пока ничего не закрыто — карточки вернутся сегодня же");
   openModal(num?"Урок "+num+" пройден":"Повтор пройден",
     num?(again?"Осталось на потом: "+again:"Урок закрыт целиком"):"",
-    '<p class="note">'+(num&&!again
+    '<p class="bigline">'+esc(фраза)+'</p>'+
+    (it.держит?'<p class="note">Память держит: '+it.держит+' — эти вернулись через неделю и дольше, и вы их вспомнили.</p>':"")+
+    '<p class="note">Снято веса: '+it.w+(streak()>1?" · подряд дней: "+streak():"")+'</p>'+
+    '<p class="note" style="margin-top:8px">'+(num&&!again
       ? "Все карточки урока уехали на повтор — вернутся сами, когда придёт срок."
       : "Карточки вернутся по расписанию: не помню — сегодня же, с трудом — скоро, помню — позже.")+'</p>'+
     '<div class="acts"><button class="btn primary" id="planAgain">К урокам</button>'+
       '<button class="btn ghost" id="planClose">Закрыть</button></div>');
+  var sh=document.querySelector("#modal .sheet");
+  if(sh){ sh.classList.add("calm"); setTimeout(function(){ sh.classList.remove("calm"); },400); }
   $("#planAgain").onclick=openPlan;
   $("#planClose").onclick=closeModal;
 }
@@ -1645,7 +1856,7 @@ $("#impBackup").addEventListener("change",function(e){
   fr.onload=async function(){
     try{ var j=JSON.parse(fr.result);
       S.edits=j.edits||{}; S.status=j.status||{}; S.notes=j.notes||{}; S.etym=j.etym||{}; S.story=j.story||{}; S.sent=j.sent||{}; S.lastTask=j.lastTask||null; S.mtime=j.mtime||{}; S.mtimes=j.mtimes||{};
-      S.srs=j.srs||{}; S.lesson=j.lesson||{}; S.diff=j.diff||{}; if(j.size>0) S.size=j.size;
+      S.srs=j.srs||{}; S.lesson=j.lesson||{}; S.diff=j.diff||{}; S.log=j.log||{}; if(j.size>0) S.size=j.size;
       if(j.imports) S.imports=j.imports;
       await saveAll(); closeModal(); renderAll(); toast("Восстановлено");
     }catch(x){ toast("Файл не читается"); } };
@@ -1672,7 +1883,7 @@ function deckInfo(){ return S.sync.deck||{ gist:"", sig:"", at:0, n:0, parts:0 }
 function syncPayload(){
   return { v:9, at:Date.now(), edits:S.edits, status:S.status, notes:S.notes,
            etym:S.etym, story:S.story, sent:S.sent, lastTask:S.lastTask,
-           srs:S.srs, lesson:S.lesson, diff:S.diff, size:S.size||20,
+           srs:S.srs, lesson:S.lesson, diff:S.diff, log:S.log, size:S.size||20,
            mtime:S.mtime, mtimes:S.mtimes, deck:deckInfo() };
 }
 function partName(n){ return CARDPREFIX+"-"+("0"+n).slice(-2)+".json"; }
@@ -1728,7 +1939,7 @@ function remoteTime(r,key,id){ var e=lastRemote(r,key,id); return e===undefined?
 function mergeTexts(r){
   var added=0, updated=0, removed=0;
   /* srs и lesson — не строки, а объекты и числа: сравниваем их как есть */
-  ["etym","story","notes","status","sent","srs","lesson","diff"].forEach(function(key){
+  ["etym","story","notes","status","sent","srs","lesson","diff","log"].forEach(function(key){
     var rm=r[key]||{}, mine=S[key]||(S[key]={});
     var same=function(a,b){ return typeof a==="object"||typeof b==="object"
       ? JSON.stringify(a)===JSON.stringify(b) : a===b; };
@@ -2104,13 +2315,13 @@ function openSync(){
 function planLine(){
   var p=planCounts();
   if(!p.всего) return "";
-  if(p.новых||p.кповтору){
-    var part=[];
-    if(p.новых) part.push(p.новых+" новых");
-    if(p.кповтору) part.push(p.кповтору+" к повтору");
-    return part.join(" · ");
-  }
-  return "на сегодня всё";
+  var part=[];
+  if(p.новых) part.push(p.новых+" новых");
+  if(p.кповтору) part.push(p.кповтору+" к повтору");
+  if(!part.length) part.push("на сегодня всё");
+  var s=streak();
+  if(s>1) part.push(скл(s,"день","дня","дней")+" подряд");
+  return part.join(" · ");
 }
 function renderPlanBtn(){
   var b=$("#lessonBtn"); if(!b) return;
@@ -2150,6 +2361,7 @@ function openPlan(){
           (l.новых&&l.новых<all?' · '+l.новых+' новых':"")+'</span></span>'+
         '<span class="lword" lang="ja">'+esc(mainText(l.cards[0]).slice(0,8))+'</span></button>';
     }).join("")+'</div>'+
+    tallyHTML()+
     '<details class="fold"><summary>как это устроено и настройки</summary><div class="body">'+
       '<p class="note" style="margin:0 0 12px">Карточки разложены по урокам от самых тяжёлых к лёгким: '+
         'считается число провалов, доля провалов и время ответа. Разбивка держится — '+
@@ -2162,6 +2374,8 @@ function openPlan(){
           '> иногда спрашивать наоборот</label>'+
         (canSpeak()?'<label class="btn ghost"><input type="checkbox" id="optVoice"'+(S.voice?" checked":"")+
           '> проговаривать вслух</label>':"")+
+        '<label class="btn ghost"><input type="checkbox" id="optSound"'+(S.sound!==false?" checked":"")+
+          '> звук</label>'+
       '</div>'+
       '<p class="note" style="margin:12px 0 0">Повторы простые, как в старом Anki: '+
         '«не помню» — сегодня же, «с трудом» — завтра и дальше понемногу, '+
@@ -2182,12 +2396,58 @@ function openPlan(){
   var own=$("#sizeOwn"); if(own) own.addEventListener("change",function(){ setSize(+own.value); });
   var ob=$("#optBack"); if(ob) ob.onchange=function(){ S.back=ob.checked; saveMeta(); };
   var ov=$("#optVoice"); if(ov) ov.onchange=function(){ S.voice=ov.checked; saveMeta(); };
+  var os=$("#optSound"); if(os) os.onchange=function(){ S.sound=os.checked; saveMeta(); if(S.sound) ding("ok"); };
+  var cs=$("#tallyCsv"); if(cs) cs.onclick=exportLog;
   var d=$("#goDue"); if(d) d.onclick=function(){ startDue(); };
   var g=$("#goNext"); if(g) g.onclick=function(){
     var first=null;
     lessonsList().forEach(function(l){ if(!first&&l.новых) first=l.n; });
     if(first) startLesson(first); else toast("Новых уроков нет");
   };
+}
+/* Таблица итогов. Это зеркало, а не счёт: цифра говорит, сколько тяжести снято
+   с колоды, и её нельзя нафармить на лёгких карточках — вес берётся из той же
+   формулы, по которой карточки разложены на уроки. */
+function tallyHTML(){
+  var days=lastDays(14), max=1, всего=0, карт=0;
+  days.forEach(function(d){ if(d.w>max) max=d.w; всего+=d.w; карт+=d.n; });
+  if(!totalWeight()) return "";
+  var s=streak(), сегодня=days[days.length-1], рек=heaviestDone(), пр=paceForecast();
+  var меток=["","",""];
+  var bars=days.map(function(d,i){
+    var h=Math.max(2,Math.round(d.w/max*100));
+    var подпись=d.день.slice(8)+"."+d.день.slice(5,7);
+    return '<div class="tbar'+(i===days.length-1?" now":"")+'" title="'+esc(подпись+" · "+d.n+" карточек · вес "+d.w)+'">'+
+      '<i style="height:'+h+'%"></i><span>'+d.день.slice(8)+'</span></div>';
+  }).join("");
+  return '<div class="tally">'+
+    '<div class="tallyLine">'+
+      (s>1?'<b>'+скл(s,"день","дня","дней")+' подряд</b> · ':"")+
+      'сегодня <b>'+(сегодня.w||0)+'</b> · за две недели <b>'+всего+'</b> · всего <b>'+totalWeight()+'</b>'+
+    '</div>'+
+    '<div class="tbars">'+bars+'</div>'+
+    '<details class="fold"><summary>итоги подробнее</summary><div class="body">'+
+      '<table class="tallyTab"><tr><th>день</th><th>уроков</th><th>карточек</th><th>вес</th><th>держит</th></tr>'+
+      days.filter(function(d){ return d.n||d.l; }).reverse().map(function(d){
+        return '<tr><td>'+esc(d.день.slice(8)+"."+d.день.slice(5,7))+'</td><td>'+d.l+'</td><td>'+d.n+'</td><td>'+d.w+'</td><td>'+(d.h||"—")+'</td></tr>';
+      }).join("")+'</table>'+
+      '<p class="note" style="margin-top:10px">В колонке «держит» — карточки, которые вернулись '+
+        'через неделю и дольше, и вы их вспомнили. Это и есть доказательство, что память работает.</p>'+
+      (рек?'<p class="note">Самая тяжёлая разобранная: <span lang="ja">'+esc(mainText(рек))+'</span> — вес '+Math.round(weightOf(рек))+'</p>':"")+
+      '<p class="note">В группе A осталось '+скл(tierACount(),"карточка","карточки","карточек")+
+        (S.imports.length>1&&S.imports[1].a!=null?' (на прошлом экспорте было '+S.imports[1].a+')':"")+'</p>'+
+      (пр?'<p class="note">При нынешнем темпе план закроется примерно '+esc(пр.когда)+'</p>':"")+
+      '<div class="acts" style="margin-top:10px"><button class="btn ghost" id="tallyCsv">Скачать таблицу CSV</button></div>'+
+    '</div></details>'+
+  '</div>';
+}
+function exportLog(){
+  var by=logByDay(), дни=Object.keys(by).sort();
+  if(!дни.length){ toast("Заниматься ещё не начинали"); return; }
+  var lines=["день,уроков,карточек,вес,держит"];
+  дни.forEach(function(d){ var e=by[d]; lines.push([d,e.l,e.n,e.w,e.h].join(",")); });
+  download("anki_итоги_"+dayKey()+".csv",lines.join("\n"));
+  toast("Выгружено "+скл(дни.length,"день","дня","дней"));
 }
 function startLesson(num){
   var list=S.cards.filter(function(c){ return S.lesson[c.id]===num; });
@@ -2238,7 +2498,7 @@ function openMenu(){
     if(m==="texts"){ exportTexts(); closeModal(); }
     if(m==="backup"){ download("anki_backup.json",JSON.stringify({v:7,edits:S.edits,status:S.status,notes:S.notes,
       etym:S.etym,story:S.story,sent:S.sent,lastTask:S.lastTask,mtime:S.mtime,mtimes:S.mtimes,imports:S.imports,
-      srs:S.srs,lesson:S.lesson,diff:S.diff,size:lessonSize()},null,1),"application/json"); closeModal(); }
+      srs:S.srs,lesson:S.lesson,diff:S.diff,log:S.log,size:lessonSize()},null,1),"application/json"); closeModal(); }
     if(m==="restore") $("#impBackup").click();
     if(m==="sync") openSync();
     if(m==="help") openHelp();
@@ -2280,7 +2540,7 @@ function confirmWipe(){
     var ks=await slist("ankidash:");
     for(var i=0;i<ks.length;i++) await sdel(ks[i]);
     S.cards=[]; S.edits={}; S.status={}; S.notes={}; S.etym={}; S.story={}; S.sent={}; S.lastTask=null;
-    S.mtime={}; S.mtimes={}; S.srs={}; S.lesson={}; S.diff={}; S.imports=[]; S.deck=null;
+    S.mtime={}; S.mtimes={}; S.srs={}; S.lesson={}; S.diff={}; S.log={}; S.imports=[]; S.deck=null;
     S.open=null; S.filters={}; setHas(false);
     closeModal(); renderAll(); $("#progress").textContent=""; toast("Очищено");
   };
@@ -2365,11 +2625,14 @@ window.addEventListener("appinstalled",function(){ $("#install").hidden=true; to
   await initStorage();
   var sy=await sget(K.sync); if(sy) try{ S.sync=JSON.parse(sy); }catch(x){}
   var ok=await loadAll();
-  if(assignLessons()) saveSoon();        // колода из старой версии: плана ещё нет
+  var новых=assignLessons();             // колода из старой версии: плана ещё нет
+  var зачтено=endowProgress();           // уже проработанное засчитываем в план
+  if(новых||зачтено) saveSoon();
   setHas(S.cards.length>0);
   shortSort(); applyTheme(); renderAll();
   if(MODE==="memory") $("#progress").textContent="Хранилище недоступно: тексты будут жить только до перезагрузки.";
   if(ok) toast("Загружено: "+S.cards.length+" карточек");
+  weekSummary();
   syncOnOpen();
   /* ушли со страницы — отдаём накопленное; вернулись нескоро — забираем свежее */
   var awayAt=0;
