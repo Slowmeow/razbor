@@ -67,6 +67,7 @@ p{margin:0}
 .btn:hover{border-color:var(--ink2)}
 .btn.primary{background:var(--ink);color:var(--paper);border-color:var(--ink)}
 .btn.ghost{font-size:12.5px;padding:7px 12px}
+.btn.big{font-size:14.5px;padding:11px 22px;font-weight:600}
 .btn.danger:hover{border-color:var(--hard);color:var(--hard)}
 .btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,.chip:focus-visible,.row:focus-visible,
 summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -102,6 +103,8 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 .editor{padding:8px 0 16px 14px;border-bottom:1px solid var(--rule);background:var(--panel)}
 .fgrid{display:flex;flex-direction:column;gap:10px;margin:10px 0}
+.subhead{margin:16px 0 0;padding-top:11px;border-top:1px solid var(--rule);font-family:var(--mono);
+         font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink3)}
 .f label{display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;
          color:var(--ink3);margin-bottom:3px}
 .f textarea{width:100%;font-family:var(--jp);font-size:14px;padding:8px 9px;border:1px solid var(--rule);border-radius:3px;
@@ -208,6 +211,7 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .chip{flex:none;min-height:40px;padding:0 14px;display:inline-flex;align-items:center}
   .line3{flex-wrap:wrap}
   .line3 .btn{flex:1 1 auto;min-height:44px}
+  .btn.big{width:100%;min-height:48px}
   .count{width:100%;text-align:right}
 
   .row{grid-template-columns:3px 20px 1fr;gap:8px;padding:12px 2px;min-height:56px}
@@ -312,8 +316,7 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
     <button class="chip reset" id="clearF">сброс</button>
   </div>
   <div class="line3">
-    <button class="btn primary" id="startDrill">Читать по одной</button>
-    <button class="btn" id="llmTask">Задание для нейросети</button>
+    <button class="btn primary big" id="startDrill">Читать по одной</button>
     <span class="spacer"></span>
     <span class="count" id="count"></span>
   </div>
@@ -652,6 +655,7 @@ async function handleFiles(files){
     var stamp=new Date().toISOString().slice(0,10);
     var res=mergeCards(buildCards(cards.rows,cards.cols),stamp);
     S.cardsAt=Date.now();
+    S.sync.dirty=true;                   // свежий экспорт тоже надо отдать
     S.imports.unshift({ at:stamp, added:res.added, moved:res.moved });
     S.imports=S.imports.slice(0,20);
     buildIndex();
@@ -700,6 +704,7 @@ async function saveAll(){
   await sset(K.sent,JSON.stringify(S.sent));
   await sset(K.mtime,JSON.stringify(S.mtime));
   await sset(K.mtimes,JSON.stringify(S.mtimes));
+  await sset(K.sync,JSON.stringify(S.sync));
   if(!ok) toast("Хранилище переполнено: словари не сохранены, тексты на месте",5000);
   return ok;
 }
@@ -712,6 +717,7 @@ async function saveTexts(){
   await sset(K.sent,JSON.stringify(S.sent));
   await sset(K.mtime,JSON.stringify(S.mtime));
   await sset(K.mtimes,JSON.stringify(S.mtimes));
+  await sset(K.sync,JSON.stringify(S.sync));
   await saveMeta();
 }
 var saveT=null;
@@ -721,12 +727,14 @@ function touch(id,key){
   var now=Date.now();
   if(key){ if(!S.mtimes[key]) S.mtimes[key]={}; S.mtimes[key][id]=now; }
   if(key!=="edits") S.mtime[id]=now;
+  S.sync.dirty=true;                     // накопилось своё — отдадим при первом же случае
 }
 function saveSoon(){ clearTimeout(saveT); saveT=setTimeout(async function(){
   await sset(K.edits,JSON.stringify(S.edits)); await sset(K.status,JSON.stringify(S.status));
   await sset(K.notes,JSON.stringify(S.notes)); await sset(K.etym,JSON.stringify(S.etym));
   await sset(K.story,JSON.stringify(S.story)); await sset(K.sent,JSON.stringify(S.sent));
   await sset(K.mtime,JSON.stringify(S.mtime)); await sset(K.mtimes,JSON.stringify(S.mtimes));
+  await sset(K.sync,JSON.stringify(S.sync));
   await saveMeta();
   syncSoon(); },700); }
 async function loadAll(){
@@ -925,6 +933,12 @@ function cardFields(c){
   });
   return main.join("")+(serv.length?'<div class="fgrid">'+serv.join("")+'</div>':"");
 }
+/* всё редактирование — под одной крышкой: на виду остаётся разбор,
+   интересное и словарь, а поля карточки нужны от случая к случаю */
+function editFold(c){
+  return foldHTML("изменить",'<div class="fgrid">'+textFields(c)+'</div>'+
+    '<p class="subhead">поля карточки</p><div class="fgrid">'+cardFields(c)+'</div>');
+}
 function editorHTML(c){
   var et=etymOf(c), st=storyOf(c);
   return '<div class="editor" data-ed="'+esc(c.id)+'">'+
@@ -934,9 +948,7 @@ function editorHTML(c){
       (S.sent[c.id]?'<span>выгружено '+esc(S.sent[c.id])+'</span>':"")+'</div>'+
     (et?foldHTML("разбор и происхождение",prose(et),"prose",true):"")+
     (st?foldHTML("интересное",prose(st),"prose",true):"")+
-    dictFolds(c,!et)+simFold(c)+
-    foldHTML("править тексты",'<div class="fgrid">'+textFields(c)+'</div>')+
-    foldHTML("поля карточки",'<div class="fgrid">'+cardFields(c)+'</div>')+
+    dictFolds(c,!et)+simFold(c)+editFold(c)+
     '<div class="acts">'+
       '<button class="btn" data-act="done">'+(S.status[c.id]==="done"?"Снять отметку":"Проработал")+'</button>'+
       '<button class="btn ghost" data-act="drill">Читать отсюда</button>'+
@@ -993,9 +1005,7 @@ function renderDrill(){
     (et?foldHTML("разбор и происхождение",prose(et),"prose"):"")+
     (st?foldHTML("интересное",prose(st),"prose"):"")+
     (!et&&!st?'<p class="note" style="margin-top:16px">Разбора пока нет. Отберите такие карточки фильтром «без разбора» и выгрузите задание для нейросети.</p>':"")+
-    dictFolds(c,false)+simFold(c)+
-    foldHTML("править тексты",'<div class="fgrid">'+textFields(c)+'</div>')+
-    foldHTML("поля карточки",'<div class="fgrid">'+cardFields(c)+'</div>');
+    dictFolds(c,false)+simFold(c)+editFold(c);
   $("#drillDone").textContent=S.status[c.id]==="done"?"✓ отмечена":"Проработал";
 }
 function drillMove(step){
@@ -1206,7 +1216,6 @@ function openTask(){
   };
   $("#taskPrompt").onclick=function(){ copy(PROMPT); };
 }
-$("#llmTask").onclick=openTask;
 
 function exportTexts(){
   var lines=[["note_id","card_id","слово","разбор","интересное","моя_заметка","статус"].join(",")], n=0;
@@ -1432,6 +1441,14 @@ function counts(o){
   return { et:Object.keys(o.etym||{}).length, st:Object.keys(o.story||{}).length,
            nt:Object.keys(o.notes||{}).length, dn:Object.keys(o.status||{}).length };
 }
+/* тихий обмен всё-таки подаёт голос, когда что-то приехало:
+   иначе непонятно, откуда на экране взялись чужие отметки */
+function arrived(t,cards){
+  if(!t||!(t.added||t.updated||t.removed||(cards&&cards.added))) return;
+  toast("С другого устройства приехало: текстов новых "+t.added+
+    (t.updated?", обновлено "+t.updated:"")+(t.removed?", убрано "+t.removed:"")+
+    ((cards&&cards.added)?", карточек новых "+cards.added:""),4000);
+}
 function countsText(c){ return c.et+" разборов, "+c.st+" интересного, "+c.nt+" заметок, "+c.dn+" проработано"; }
 function stampNow(){ return new Date().toISOString().slice(0,16).replace("T"," "); }
 async function remoteFile(g,name){
@@ -1495,6 +1512,17 @@ function syncSoon(){
   if(!online()){ S.sync.pending=true; return; }          // вернётся сеть — отправим
   clearTimeout(syncT); syncT=setTimeout(function(){ syncPush(true); },5000);
 }
+/* Обмен без кнопки. Хранилище настроено — значит человек хочет одно и то же
+   на всех устройствах, и незачем заставлять его лезть в меню:
+   открыли — забрали свежее, ушли — отдали своё. */
+function syncable(){ return !!(S.sync.token&&S.sync.gist&&online()); }
+async function syncOnOpen(){
+  if(!syncable()) return;
+  /* своё несохранённое отдаём отправкой: она сама сначала сольёт чужое */
+  if(S.sync.dirty) await syncPush(true); else await syncPull(true);
+}
+function syncOnLeave(){ if(S.sync.dirty&&syncable()) syncPush(true); }
+
 /* Отправка сначала забирает то, что уже лежит, и сливает с локальным.
    Без этого устройство, на котором ещё пусто, затирало работу с другого. */
 async function syncPush(quiet){
@@ -1541,6 +1569,7 @@ async function syncPush(quiet){
       }
     }
     var files={}; files[SYNCFILE]={ content:JSON.stringify(syncPayload()) };
+    S.sync.dirty=false;      // всё, что было на этот миг, уже в посылке
     /* переезд со старого хранилища: колода теперь живёт отдельно */
     oldHere.forEach(function(n){ files[n]=null; });
     if(S.sync.gist) await gist("PATCH","/gists/"+S.sync.gist,{files:files});
@@ -1552,7 +1581,7 @@ async function syncPush(quiet){
     S.sync.ready=true;
     await sset(K.sync,JSON.stringify(S.sync));
     await saveTexts();
-    if(changed&&(changed.added||changed.updated||changed.removed)) renderAll();
+    if(changed&&(changed.added||changed.updated||changed.removed)){ renderAll(); if(quiet) arrived(changed); }
     if(!quiet) toast("Отправлено: "+countsText(counts(syncPayload()))+
       (sentDeck?" и колода, "+S.cards.length+" карточек"+(S.sync.dicts!==false?" со словарями":"")
                :(S.cards.length?". Колода не менялась — не гонял её зря":"")),5000);
@@ -1581,6 +1610,7 @@ async function syncPull(quiet){
     await sset(K.sync,JSON.stringify(S.sync));
     if(cm.added||cm.updated) await saveAll(); else await saveTexts();
     renderAll();
+    if(quiet) arrived(t,cm);
     if(!quiet){
       var m="Забрал: новых "+t.added+", обновлено "+t.updated+(t.removed?", убрано "+t.removed:"")+
              ". Теперь здесь: "+countsText(counts(syncPayload()));
@@ -1620,7 +1650,7 @@ function openSync(){
         '<textarea rows="1" id="syncGist" placeholder="пусто">'+esc(S.sync.gist||"")+'</textarea></div>'+
     '</div>'+
     '<div class="acts">'+
-      '<label class="btn ghost"><input type="checkbox" id="syncAuto"'+(S.sync.auto?" checked":"")+'> отправлять автоматически</label>'+
+      '<label class="btn ghost"><input type="checkbox" id="syncAuto"'+(S.sync.auto?" checked":"")+'> отправлять сразу после правки</label>'+
       '<label class="btn ghost"><input type="checkbox" id="syncCards"'+(S.sync.cards!==false?" checked":"")+'> передавать и карточки</label>'+
       '<label class="btn ghost"><input type="checkbox" id="syncDicts"'+(S.sync.dicts!==false?" checked":"")+'> и словари тоже</label>'+
     '</div>'+
@@ -1631,6 +1661,9 @@ function openSync(){
       '<button class="btn ghost" id="syncSave">Сохранить настройки</button></div>'+
     '<p class="note" style="margin-top:10px">На этом устройстве: '+S.cards.length+' карточек, '+countsText(here)+'</p>'+
     '<p class="note">'+(S.sync.at?"последняя отправка: "+esc(S.sync.at):"ещё не синхронизировали")+'</p>'+
+    '<p class="note">Кнопки нужны редко: пока указаны токен и адрес, приложение забирает свежее при '+
+      'каждом открытии и отдаёт своё, когда вы уходите со страницы. Галочка выше добавляет к этому '+
+      'отправку через несколько секунд после каждой правки — для работы на двух устройствах сразу.</p>'+
     '<p class="note">Токен создаётся на github.com → Settings → Developer settings → Tokens (classic) → отметить только gist. Он хранится на этом устройстве.</p>');
   var weigh=function(){
     var el=$("#syncWeight"); if(!el) return;
@@ -1669,13 +1702,15 @@ function openSync(){
 function openMenu(){
   openModal("Ещё", S.cards.length?(S.cards.length+" карточек в приложении"):"",
     '<div class="menu">'+
+      '<button class="item" data-m="sync">Синхронизация между устройствами<small>'+
+        (S.sync.gist?"обмен идёт сам; последняя отправка: "+esc(S.sync.at||"ещё не было"):"настроить обмен")+'</small></button>'+
       '<button class="item" data-m="add">Добавить файл<small>новый экспорт или ответ нейросети</small></button>'+
       '<button class="item" data-m="task">Задание для нейросети<small>по текущей выборке</small></button>'+
       '<button class="item" data-m="cid">Список cid: для Anki<small>чтобы найти эти карточки в браузере Anki</small></button>'+
       '<button class="item" data-m="bulk">Отметить всё видимое проработанным</button><button class="item" data-m="forget">Забыть, что уже выгружено<small>тогда эти слова снова попадут в задание</small></button>'+
       '<hr>'+
       '<button class="item" data-m="texts">Скачать разборы и заметки<small>CSV</small></button>'+
-      '<button class="item" data-m="sync">Синхронизация между устройствами<small>разборы и заметки на всех ваших устройствах</small></button><button class="item" data-m="backup">Резервная копия<small>JSON со всеми вашими текстами</small></button>'+
+      '<button class="item" data-m="backup">Резервная копия<small>JSON со всеми вашими текстами</small></button>'+
       '<button class="item" data-m="restore">Восстановить из копии</button>'+
       '<hr>'+
       '<button class="item" data-m="help">Как пользоваться</button>'+
@@ -1807,7 +1842,14 @@ window.addEventListener("appinstalled",function(){ $("#install").hidden=true; to
   shortSort(); applyTheme(); renderAll();
   if(MODE==="memory") $("#progress").textContent="Хранилище недоступно: тексты будут жить только до перезагрузки.";
   if(ok) toast("Загружено: "+S.cards.length+" карточек");
-  if(S.sync.auto&&S.sync.token&&S.sync.gist&&online()) syncPull(true);
+  syncOnOpen();
+  /* ушли со страницы — отдаём накопленное; вернулись нескоро — забираем свежее */
+  var awayAt=0;
+  document.addEventListener("visibilitychange",function(){
+    if(document.hidden){ awayAt=Date.now(); syncOnLeave(); return; }
+    if(awayAt&&Date.now()-awayAt>120000){ awayAt=0; syncOnOpen(); }
+  });
+  window.addEventListener("pagehide",syncOnLeave);
   /* сеть появилась — досылаем то, что накопилось офлайн */
   window.addEventListener("online",function(){
     if(S.sync.auto&&S.sync.token&&S.sync.gist&&S.sync.ready&&S.sync.pending){
