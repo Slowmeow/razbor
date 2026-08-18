@@ -134,6 +134,18 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 .more{text-align:center;padding:18px}
 .empty{padding:44px 10px;text-align:center;color:var(--ink3);font-size:13.5px}
+/* Пока колода поднимается из базы, показываем её силуэт. Иначе на секунду
+   мелькает приглашение загрузить файл — будто данные пропали. */
+.boot{margin-top:6px;border-top:1px solid var(--rule)}
+.bootRow{display:grid;grid-template-columns:3px 22px 1fr auto;gap:10px;align-items:center;
+         padding:11px 4px 11px 0;border-bottom:1px solid var(--rule)}
+.bootRow i{display:block;border-radius:3px;background:var(--rule);opacity:.55;animation:pulse 1.4s ease-in-out infinite}
+.bootRow i.b{height:32px;border-radius:2px}
+.bootRow i.t{height:13px;width:16px;justify-self:center}
+.bootRow i.w{height:17px}
+.bootRow i.n{height:26px;width:52px}
+@keyframes pulse{0%,100%{opacity:.30}50%{opacity:.62}}
+@media (prefers-reduced-motion:reduce){.bootRow i{animation:none}}
 
 .modal{position:fixed;inset:0;background:rgba(8,10,9,.6);display:grid;place-items:center;padding:18px;z-index:50;overscroll-behavior:contain}
 .sheet{background:var(--paper);border:1px solid var(--rule);border-radius:4px;max-width:680px;width:100%;max-height:84vh;overscroll-behavior:contain;
@@ -266,7 +278,7 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   </div>
 </header>
 
-<section class="intake" id="intake">
+<section class="intake" id="intake" hidden>
   <div class="drop" id="drop">
     <p class="dropTitle">Перетащите сюда файлы</p>
     <p class="dropHint"><b>card_summary.csv</b> из экспорта статистики Anki — это всё, что нужно.<br>
@@ -286,6 +298,7 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
       <option value="rate" data-s="доля Again">по доле Again</option>
       <option value="reviews" data-s="повторы">по числу повторов</option>
       <option value="time" data-s="время">по времени ответа</option>
+      <option value="done" data-s="проработка">по проработке</option>
       <option value="word" data-s="алфавит">по алфавиту</option>
     </select>
   </div>
@@ -306,6 +319,14 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   </div>
 </section>
 
+<div class="boot" id="boot">
+  <div class="bootRow"><i class="b"></i><i class="t"></i><i class="w" style="width:42%"></i><i class="n"></i></div>
+  <div class="bootRow"><i class="b"></i><i class="t"></i><i class="w" style="width:64%"></i><i class="n"></i></div>
+  <div class="bootRow"><i class="b"></i><i class="t"></i><i class="w" style="width:35%"></i><i class="n"></i></div>
+  <div class="bootRow"><i class="b"></i><i class="t"></i><i class="w" style="width:55%"></i><i class="n"></i></div>
+  <div class="bootRow"><i class="b"></i><i class="t"></i><i class="w" style="width:47%"></i><i class="n"></i></div>
+  <div class="bootRow"><i class="b"></i><i class="t"></i><i class="w" style="width:30%"></i><i class="n"></i></div>
+</div>
 <main id="list"></main>
 <div class="more" id="more"></div>
 </div>
@@ -401,6 +422,9 @@ async function slist(p){ try{
   if(MODE==="local"){ var o=[]; for(var i=0;i<LS.length;i++){ var k=LS.key(i); if(k.indexOf(p)===0) o.push(k); } return o; } }catch(e){}
   return Object.keys(mem).filter(function(k){ return k.indexOf(p)===0; }); }
 
+var HAS="ankidash:has";
+function setHas(yes){ try{ if(LS) LS.setItem(HAS, yes?"1":"0"); }catch(e){} }
+function hadCards(){ try{ return LS ? LS.getItem(HAS) : null; }catch(e){ return null; } }
 var K={ meta:"ankidash:meta", cards:"ankidash:cards:", edits:"ankidash:edits",
         status:"ankidash:status", notes:"ankidash:notes", etym:"ankidash:etym", story:"ankidash:story",
         sent:"ankidash:sent", mtime:"ankidash:mtime", mtimes:"ankidash:mtimes", sync:"ankidash:sync" };
@@ -545,6 +569,7 @@ function buildCards(rows,cols){
 }
 
 /* ---------- важность ---------- */
+function doneAt(id){ var m=S.mtimes.status; return (m&&m[id])||0; }
 function tierOf(c){ return c.a>=TIER.A?"A":(c.a>=TIER.B?"B":(c.a>=TIER.C?"C":"D")); }
 function colorOf(c){ var t=tierOf(c); return t==="A"?"var(--hard)":(t==="B"?"var(--mid)":(t==="C"?"var(--soft)":"var(--easy)")); }
 function score(c){ return (c.a+1.5)/(c.n+5); }
@@ -643,7 +668,7 @@ async function handleFiles(files){
 var CHUNK=300;
 function meta(){ return { v:6, at:Date.now(), chunks:Math.ceil(S.cards.length/CHUNK), deck:S.deck,
   imports:S.imports, theme:S.theme, sort:S.sort, lastTask:S.lastTask, cardsAt:S.cardsAt||0 }; }
-async function saveMeta(){ return await sset(K.meta,JSON.stringify(meta())); }
+async function saveMeta(){ setHas(S.cards.length>0); return await sset(K.meta,JSON.stringify(meta())); }
 /* _s — строка для поиска, её собирает buildIndex при загрузке. Хранить её незачем,
    а весит она как все словари вместе взятые. */
 function bare(c){ var o={}; for(var k in c) if(k!=="f"&&k!=="_s") o[k]=c[k]; return o; }
@@ -817,6 +842,16 @@ function visible(){
     return true;
   });
   if(S.sort==="word"){ res.sort(function(a,b){ return mainText(a).localeCompare(mainText(b),"ja"); }); return res; }
+  /* проработанные сверху, свежеотмеченные раньше — видно, докуда дошёл */
+  if(S.sort==="done"){
+    res.sort(function(a,b){
+      var da=S.status[a.id]==="done"?1:0, db=S.status[b.id]==="done"?1:0;
+      if(da!==db) return db-da;
+      if(da) return doneAt(b.id)-doneAt(a.id);
+      return b.a-a.a;
+    });
+    return res;
+  }
   var key={ again:function(c){return c.a}, score:score, rate:function(c){return c.rate},
             reviews:function(c){return c.n}, time:function(c){return c.t} }[S.sort];
   res.sort(function(a,b){ var x=key(a),y=key(b); if(x===y) return b.a-a.a; return x<y?1:-1; });
@@ -930,6 +965,7 @@ function renderList(){
   var mb=$("#moreBtn"); if(mb) mb.onclick=function(){ S.page++; renderList(); };
 }
 function renderAll(){
+  $("#boot").hidden=true;
   $("#intake").hidden=S.cards.length>0;
   $("#controls").hidden=!S.cards.length;
   $("#sort").value=S.sort;
@@ -1396,7 +1432,7 @@ function counts(o){
   return { et:Object.keys(o.etym||{}).length, st:Object.keys(o.story||{}).length,
            nt:Object.keys(o.notes||{}).length, dn:Object.keys(o.status||{}).length };
 }
-function countsText(c){ return c.et+" разборов, "+c.st+" интересного, "+c.nt+" заметок"; }
+function countsText(c){ return c.et+" разборов, "+c.st+" интересного, "+c.nt+" заметок, "+c.dn+" проработано"; }
 function stampNow(){ return new Date().toISOString().slice(0,16).replace("T"," "); }
 async function remoteFile(g,name){
   var f=g.files&&g.files[name]; if(!f) return null;
@@ -1546,7 +1582,8 @@ async function syncPull(quiet){
     if(cm.added||cm.updated) await saveAll(); else await saveTexts();
     renderAll();
     if(!quiet){
-      var m="Забрал: текстов новых "+t.added+", обновлено "+t.updated+(t.removed?", убрано "+t.removed:"");
+      var m="Забрал: новых "+t.added+", обновлено "+t.updated+(t.removed?", убрано "+t.removed:"")+
+             ". Теперь здесь: "+countsText(counts(syncPayload()));
       if(cm.added||cm.updated) m+="; карточек новых "+cm.added+(cm.updated?", обновлено "+cm.updated:"");
       else if(S.cards.length) m+=". Колода не менялась — не тянул её зря";
       if(!S.cards.length) m+=". Карточек нет ни здесь, ни в хранилище — киньте сюда card_summary.csv";
@@ -1683,7 +1720,7 @@ function confirmWipe(){
     var ks=await slist("ankidash:");
     for(var i=0;i<ks.length;i++) await sdel(ks[i]);
     S.cards=[]; S.edits={}; S.status={}; S.notes={}; S.etym={}; S.story={}; S.sent={}; S.lastTask=null; S.mtime={}; S.imports=[]; S.deck=null;
-    S.open=null; S.filters={};
+    S.open=null; S.filters={}; setHas(false);
     closeModal(); renderAll(); $("#progress").textContent=""; toast("Очищено");
   };
   $("#wipeNo").onclick=closeModal;
@@ -1754,10 +1791,19 @@ $("#install").onclick=function(){
 };
 window.addEventListener("appinstalled",function(){ $("#install").hidden=true; toast("Установлено"); });
 
+/* Первый кадр рисуем сразу, не дожидаясь базы: если колода была,
+   показываем силуэт списка, если её не было — сразу приглашение. */
+(function(){
+  var had=hadCards();
+  if(had==="0"){ $("#boot").hidden=true; $("#intake").hidden=false; }
+  else $("#boot").hidden=false;              // "1" и «не знаем» — ждём молча
+})();
+
 (async function(){
   await initStorage();
   var sy=await sget(K.sync); if(sy) try{ S.sync=JSON.parse(sy); }catch(x){}
   var ok=await loadAll();
+  setHas(S.cards.length>0);
   shortSort(); applyTheme(); renderAll();
   if(MODE==="memory") $("#progress").textContent="Хранилище недоступно: тексты будут жить только до перезагрузки.";
   if(ok) toast("Загружено: "+S.cards.length+" карточек");
