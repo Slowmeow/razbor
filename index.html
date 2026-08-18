@@ -36,7 +36,12 @@
   --paper:#101312; --panel:#1B201E; --ink:#F2F1EB; --ink2:#C3C8C4; --ink3:#949B97;
   --rule:#333937; --hard:#F08375; --mid:#EDB863; --soft:#D2BC85; --easy:#84CFA0; --accent:#B49CF5;
 }
-*{box-sizing:border-box}
+*{box-sizing:border-box;scrollbar-width:thin;scrollbar-color:var(--rule) transparent}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--rule);border-radius:10px;border:3px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-thumb:hover{background:var(--ink3);background-clip:content-box}
+::-webkit-scrollbar-corner{background:transparent}
 [hidden]{display:none !important}
 html{overflow-x:hidden;-webkit-text-size-adjust:100%}
 html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);min-height:100%;overflow-wrap:break-word}
@@ -135,6 +140,19 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .grades .g0{border-color:var(--hard);color:var(--hard)} .grades .g0 small{color:var(--hard);opacity:.8}
 .grades .g1{border-color:var(--mid);color:var(--mid)}   .grades .g1 small{color:var(--mid);opacity:.8}
 .grades .g2{border-color:var(--easy);color:var(--easy)} .grades .g2 small{color:var(--easy);opacity:.8}
+.simpair{border-bottom:1px solid var(--rule);padding-bottom:8px}
+.simpair:last-child{border-bottom:0;padding-bottom:0}
+.simhead{display:flex;gap:8px;align-items:center}
+.simhead button{flex:1;min-width:0}
+.simdiff{width:100%;margin-top:6px;font:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--rule);
+         border-radius:3px;background:var(--paper);color:var(--ink);resize:vertical}
+.simdiff.filled{border-color:var(--accent)}
+.backTag{font-family:var(--mono);font-size:11px;letter-spacing:.04em;text-transform:uppercase;
+         color:var(--accent);margin:0 0 14px}
+.say{font:inherit;font-size:15px;line-height:1;border:1px solid var(--rule);border-radius:3px;
+     background:var(--panel);color:var(--ink2);cursor:pointer;flex:none;vertical-align:middle;
+     min-width:40px;min-height:40px;display:inline-flex;align-items:center;justify-content:center}
+.say:hover{border-color:var(--ink2)}
 .subhead{margin:16px 0 0;padding-top:11px;border-top:1px solid var(--rule);font-family:var(--mono);
          font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink3)}
 .f label{display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;
@@ -206,7 +224,9 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .drillTop .fill{height:100%;background:var(--accent)}
 .drillPos{font-family:var(--mono);font-size:12px;color:var(--ink3);white-space:nowrap}
 .drillBody{flex:1;overflow:auto;overscroll-behavior:contain;padding:26px 18px 20px;max-width:680px;margin:0 auto;width:100%}
-.drillWord{font-family:var(--jp);font-size:46px;line-height:1.15;overflow-wrap:anywhere}
+.drillHead{display:flex;gap:10px;align-items:center}
+.drillHead .say{font-size:18px;padding:8px 11px}
+.drillWord{font-family:var(--jp);font-size:46px;line-height:1.15;overflow-wrap:anywhere;min-width:0}
 .drillRead{font-family:var(--jp);font-size:17px;color:var(--ink3);margin-top:4px}
 .drillSent{font-family:var(--jp);font-size:17px;margin-top:16px;padding-left:12px;border-left:3px solid var(--rule)}
 .drillStats{display:flex;gap:14px;flex-wrap:wrap;font-family:var(--mono);font-size:11.5px;color:var(--ink3);margin-top:12px}
@@ -244,6 +264,7 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .line3{flex-wrap:wrap}
   .line3 .btn{flex:1 1 auto;min-height:44px}
   .btn.big{width:100%;min-height:48px}
+  .say{min-width:44px;min-height:44px;font-size:17px}
   #sizeOwn{font-size:16px;min-height:44px}
   .lessons{max-height:40vh}
   .grades .btn{min-height:52px;padding:8px 6px;font-size:13px}
@@ -350,6 +371,7 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
     <button class="chip" data-f="noetym">без разбора</button>
     <button class="chip" data-f="todo">не проработаны</button>
     <button class="chip" data-f="due">к повтору</button>
+    <button class="chip" data-f="slow">знаю, но медленно</button>
     <button class="chip reset" id="clearF">сброс</button>
   </div>
   <div class="line3">
@@ -478,13 +500,13 @@ function hadCards(){ try{ return LS ? LS.getItem(HAS) : null; }catch(e){ return 
 var K={ meta:"ankidash:meta", cards:"ankidash:cards:", edits:"ankidash:edits",
         status:"ankidash:status", notes:"ankidash:notes", etym:"ankidash:etym", story:"ankidash:story",
         sent:"ankidash:sent", mtime:"ankidash:mtime", mtimes:"ankidash:mtimes", sync:"ankidash:sync",
-        srs:"ankidash:srs", lesson:"ankidash:lesson" };
+        srs:"ankidash:srs", lesson:"ankidash:lesson", diff:"ankidash:diff" };
 
 /* ---------- состояние ---------- */
 var TIER={ A:12, B:8, C:4 };
 var S={ cards:[], edits:{}, status:{}, notes:{}, etym:{}, story:{}, sent:{}, lastTask:null,
         mtime:{}, mtimes:{}, cardsAt:0, sync:{}, imports:[], deck:null,
-        srs:{}, lesson:{}, size:20,
+        srs:{}, lesson:{}, diff:{}, size:20, back:true, voice:false,
         filters:{}, sort:"again", q:"", page:0, PAGE:60, open:null, cursor:-1,
         theme:"auto", drill:null, _vis:[], _idx:{read:{},kanji:{}}, _byId:{} };
 var $=function(s){ return document.querySelector(s); };
@@ -639,6 +661,35 @@ function tierOf(c){ return c.a>=TIER.A?"A":(c.a>=TIER.B?"B":(c.a>=TIER.C?"C":"D"
 function colorOf(c){ var t=tierOf(c); return t==="A"?"var(--hard)":(t==="B"?"var(--mid)":(t==="C"?"var(--soft)":"var(--easy)")); }
 function score(c){ return (c.a+1.5)/(c.n+5); }
 
+/* ---------- звук ----------
+   Голос берём из системы: ничего не качается, работает офлайн и в самолёте.
+   Японского голоса в системе может не быть — тогда кнопки просто нет. */
+var voiceJa=null;
+function pickVoice(){
+  try{
+    var v=window.speechSynthesis?speechSynthesis.getVoices():[];
+    voiceJa=null;
+    for(var i=0;i<v.length;i++) if(/^ja/i.test(v[i].lang)){ voiceJa=v[i]; break; }
+  }catch(e){ voiceJa=null; }
+  return voiceJa;
+}
+function canSpeak(){ return !!(window.speechSynthesis&&(voiceJa||pickVoice())); }
+function speak(text){
+  if(!text||!window.speechSynthesis) return;
+  try{
+    speechSynthesis.cancel();
+    var u=new SpeechSynthesisUtterance(String(text).slice(0,140));
+    u.lang="ja-JP"; if(voiceJa||pickVoice()) u.voice=voiceJa;
+    u.rate=0.9;
+    speechSynthesis.speak(u);
+  }catch(e){}
+}
+function sayBtn(text){
+  if(!canSpeak()||!text) return "";
+  return '<button class="say" data-say="'+esc(text)+'" title="Произнести" aria-label="Произнести">🔊</button>';
+}
+try{ if(window.speechSynthesis){ pickVoice(); speechSynthesis.onvoiceschanged=pickVoice; } }catch(e){}
+
 /* ---------- уроки: формула, разбивка, расписание ----------
 
    Насколько карточка мешает жить. Считаем три вещи, которые есть в экспорте:
@@ -706,6 +757,13 @@ function grade(id,g){
      чтобы прежние счётчики и фильтры остались осмысленными */
   if(st.i>=1&&S.status[id]!=="done"){ S.status[id]="done"; touch(id,"status"); }
   return st;
+}
+/* Отметил проработанной руками — карточка не должна пропадать навсегда:
+   ставим её в то же расписание, как будто ответили «помню». */
+function scheduleIfNew(id){
+  if(S.srs[id]) return;
+  S.srs[id]={ i:2, e:2.5, r:1, l:0, d:today()+2*DAY };
+  touch(id,"srs");
 }
 function dueCards(){
   var out=[];
@@ -828,7 +886,7 @@ async function handleFiles(files){
 var CHUNK=300;
 function meta(){ return { v:7, at:Date.now(), chunks:Math.ceil(S.cards.length/CHUNK), deck:S.deck,
   imports:S.imports, theme:S.theme, sort:S.sort, lastTask:S.lastTask, cardsAt:S.cardsAt||0,
-  size:lessonSize(), sizeAt:S.sizeAt||0 }; }
+  size:lessonSize(), sizeAt:S.sizeAt||0, back:S.back!==false, voice:!!S.voice }; }
 async function saveMeta(){ setHas(S.cards.length>0); return await sset(K.meta,JSON.stringify(meta())); }
 /* _s — строка для поиска, её собирает buildIndex при загрузке. Хранить её незачем,
    а весит она как все словари вместе взятые. */
@@ -861,6 +919,7 @@ async function saveAll(){
   await sset(K.sent,JSON.stringify(S.sent));
   await sset(K.srs,JSON.stringify(S.srs));
   await sset(K.lesson,JSON.stringify(S.lesson));
+  await sset(K.diff,JSON.stringify(S.diff));
   await sset(K.mtime,JSON.stringify(S.mtime));
   await sset(K.mtimes,JSON.stringify(S.mtimes));
   await sset(K.sync,JSON.stringify(S.sync));
@@ -876,6 +935,7 @@ async function saveTexts(){
   await sset(K.sent,JSON.stringify(S.sent));
   await sset(K.srs,JSON.stringify(S.srs));
   await sset(K.lesson,JSON.stringify(S.lesson));
+  await sset(K.diff,JSON.stringify(S.diff));
   await sset(K.mtime,JSON.stringify(S.mtime));
   await sset(K.mtimes,JSON.stringify(S.mtimes));
   await sset(K.sync,JSON.stringify(S.sync));
@@ -896,6 +956,7 @@ function saveSoon(){ clearTimeout(saveT); saveT=setTimeout(async function(){
   await sset(K.notes,JSON.stringify(S.notes)); await sset(K.etym,JSON.stringify(S.etym));
   await sset(K.story,JSON.stringify(S.story)); await sset(K.sent,JSON.stringify(S.sent));
   await sset(K.srs,JSON.stringify(S.srs)); await sset(K.lesson,JSON.stringify(S.lesson));
+  await sset(K.diff,JSON.stringify(S.diff));
   await sset(K.mtime,JSON.stringify(S.mtime)); await sset(K.mtimes,JSON.stringify(S.mtimes));
   await sset(K.sync,JSON.stringify(S.sync));
   await saveMeta();
@@ -915,6 +976,7 @@ async function reloadTexts(){
   var sn=await sget(K.sent); if(sn) try{ S.sent=JSON.parse(sn); }catch(x){}
   var sr=await sget(K.srs); if(sr) try{ S.srs=JSON.parse(sr)||{}; }catch(x){}
   var ls=await sget(K.lesson); if(ls) try{ S.lesson=JSON.parse(ls)||{}; }catch(x){}
+  var df=await sget(K.diff); if(df) try{ S.diff=JSON.parse(df)||{}; }catch(x){}
   var mt=await sget(K.mtime); if(mt) try{ S.mtime=JSON.parse(mt); }catch(x){}
   var ms=await sget(K.mtimes); if(ms) try{ S.mtimes=JSON.parse(ms)||{}; }catch(x){}
   var a=document.activeElement;
@@ -931,6 +993,7 @@ async function loadAll(){
   try{ m=JSON.parse(m); }catch(e){ return false; }
   S.deck=m.deck||null; S.imports=m.imports||[]; S.theme=m.theme||"auto"; if(m.sort) S.sort=m.sort; S.lastTask=m.lastTask||null;
   if(m.size>0) S.size=m.size; S.sizeAt=m.sizeAt||0;
+  S.back=m.back!==false; S.voice=!!m.voice;
   S.cardsAt=m.cardsAt||0;
   var arr=[];
   for(var c=0;c<(m.chunks||0);c++){ var s=await sget(K.cards+c); if(s){ try{ arr=arr.concat(JSON.parse(s)); }catch(e){} } }
@@ -943,6 +1006,7 @@ async function loadAll(){
   var sn=await sget(K.sent); if(sn) try{ S.sent=JSON.parse(sn); }catch(x){}
   var sr=await sget(K.srs); if(sr) try{ S.srs=JSON.parse(sr)||{}; }catch(x){}
   var ls=await sget(K.lesson); if(ls) try{ S.lesson=JSON.parse(ls)||{}; }catch(x){}
+  var df=await sget(K.diff); if(df) try{ S.diff=JSON.parse(df)||{}; }catch(x){}
   var mt=await sget(K.mtime); if(mt) try{ S.mtime=JSON.parse(mt); }catch(x){}
   var mts=await sget(K.mtimes); if(mts) try{ S.mtimes=JSON.parse(mts)||{}; }catch(x){}
   buildIndex();
@@ -1000,11 +1064,29 @@ function buildIndex(){
     c._s=buf.join(" ").toLowerCase();
   }
   S._idx={read:R,kanji:KJ}; S._byId=BY;
+  /* срединные время ответа и доля провалов — по ним видно, что даётся туго,
+     хотя и без ошибок: долгий ответ означает хрупкую память */
+  var ts=[], rs=[];
+  for(i=0;i<S.cards.length;i++){ var x=S.cards[i];
+    if(x.t>0) ts.push(x.t); if(x.n>0) rs.push(x.a/x.n); }
+  var mid=function(a){ if(!a.length) return 0; a.sort(function(p,q){ return p-q; });
+    return a[Math.floor(a.length/2)]; };
+  S._med={ t:mid(ts), rate:mid(rs) };
 }
 function reindexCard(c){
   var buf=[];
   for(var j=0;j<c.f.length;j++){ var f=c.f[j]; buf.push(f.dict?f.v.slice(0,400):valOf(c,f)); }
   c._s=buf.join(" ").toLowerCase();
+}
+/* Главная причина залипших карточек — не сложность, а путаница между похожими.
+   Лечится не зубрёжкой, а проговоренным различием, поэтому оно хранится
+   на паре, а не на карточке: написал один раз — видно с обеих сторон. */
+function pairKey(a,b){ return a<b ? a+"|"+b : b+"|"+a; }
+function diffOf(a,b){ return (S.diff[pairKey(a,b)]||"").trim(); }
+function setDiff(a,b,v){
+  var k=pairKey(a,b); v=String(v||"").trim();
+  if(v) S.diff[k]=v; else delete S.diff[k];
+  touch(k,"diff"); saveSoon();
 }
 function similarOf(c){
   var byId=S._byId, homo=[], kin=[], seen={}; seen[c.id]=1;
@@ -1027,7 +1109,9 @@ var FILTERS={
   tierD:function(c){ return c.a<TIER.C; },
   noetym:function(c){ return !etymOf(c); },
   todo:function(c){ return S.status[c.id]!=="done"; },
-  due:function(c){ return isDue(c.id); }
+  due:function(c){ return isDue(c.id); },
+  slow:function(c){ var m=S._med||{};
+    return c.n>=5 && m.t>0 && (c.t||0)>=m.t*1.5 && (c.n?c.a/c.n:0)<=(m.rate||0); }
 };
 var EXCL={ tierA:["tierB","tierC","tierD"], tierB:["tierA","tierC","tierD"], tierC:["tierA","tierB","tierD"], tierD:["tierA","tierB","tierC"] };
 function visible(){
@@ -1101,9 +1185,19 @@ function dictFolds(c,openMain){
 }
 function simFold(c){
   var s=similarOf(c); if(!s.length) return "";
-  return '<details class="fold"><summary>похожие слова ('+s.length+')</summary><div class="simlist">'+
-    s.map(function(x){ return '<button data-go="'+esc(x.c.id)+'" lang="ja">'+esc(mainText(x.c))+
-      '<span class="why">'+esc(x.why)+'</span></button>'; }).join("")+'</div></details>';
+  var есть=0;
+  s.forEach(function(x){ if(diffOf(c.id,x.c.id)) есть++; });
+  return '<details class="fold"'+(есть?" open":"")+'><summary>похожие слова ('+s.length+
+    (есть?", различий "+есть:"")+')</summary><div class="simlist">'+
+    s.map(function(x){
+      var d=diffOf(c.id,x.c.id);
+      return '<div class="simpair">'+
+        '<div class="simhead"><button data-go="'+esc(x.c.id)+'" lang="ja">'+esc(mainText(x.c))+
+          '<span class="why">'+esc(x.why)+'</span></button>'+sayBtn(mainText(x.c))+'</div>'+
+        '<textarea class="simdiff'+(d?" filled":"")+'" rows="'+(d?2:1)+'" data-diff="'+esc(x.c.id)+'" '+
+          'placeholder="в чём разница? одной строкой — и обе перестанут путаться">'+esc(d)+'</textarea>'+
+        '</div>';
+    }).join("")+'</div></details>';
 }
 function textFields(c){
   return '<div class="f long"><label>разбор и происхождение</label><textarea rows="4" data-etym="1" '+
@@ -1138,7 +1232,8 @@ function editorHTML(c){
     '<div class="meta"><span>важность '+tierOf(c)+'</span><span>'+c.a+' Again из '+c.n+' ('+Math.round(c.rate*100)+'%)</span>'+
       '<span>'+fmtTime(c.t)+'</span><span>cid '+esc(c.id)+'</span>'+
       (c.dn>0?'<span>+'+c.dn+' повт. с прошлого экспорта</span>':"")+
-      (S.sent[c.id]?'<span>выгружено '+esc(S.sent[c.id])+'</span>':"")+'</div>'+
+      (S.sent[c.id]?'<span>выгружено '+esc(S.sent[c.id])+'</span>':"")+
+      (canSpeak()?'<span class="grow"></span>'+sayBtn(mainText(c)):"")+'</div>'+
     (et?foldHTML("разбор и происхождение",prose(et),"prose",true):"")+
     (st?foldHTML("интересное",prose(st),"prose",true):"")+
     dictFolds(c,!et)+simFold(c)+editFold(c)+
@@ -1183,6 +1278,32 @@ function startDrill(list,i){
   S.drill={list:list,i:i||0}; $("#drill").hidden=false; document.body.style.overflow="hidden"; renderDrill();
 }
 function exitDrill(){ S.drill=null; $("#drill").hidden=true; document.body.style.overflow=""; renderAll(); }
+/* Обратная сторона. В Anki слово всегда узнаёшь и никогда не производишь —
+   поэтому оно «знакомое», но не своё. Раз в три повтора спрашиваем наоборот:
+   показываем разбор и просим вспомнить само слово. Чередование считается от
+   числа повторов, а не случайно, — иначе при перерисовке карточка бы прыгала. */
+function canAskBack(c){
+  return !!(etymOf(c)||storyOf(c)||dictOf(c,"en")||exampleText(c));
+}
+function isBack(c){
+  if(!S.back||!canAskBack(c)) return false;
+  var st=S.srs[c.id];
+  return !!st && st.r>0 && st.r%3===2;
+}
+/* Само слово в примере закрываем — иначе подсказка выдаёт ответ. */
+function maskWord(text,word){
+  if(!text||!word) return text;
+  return text.split(word).join("◻◻◻");
+}
+function backHint(c){
+  var et=etymOf(c), st=storyOf(c), en=dictOf(c,"en"), ex=exampleText(c), w=mainText(c);
+  var h="";
+  if(et) h+=foldHTML("разбор и происхождение",prose(maskWord(et,w)),"prose",true);
+  if(st) h+=foldHTML("интересное",prose(maskWord(st,w)),"prose",!et);
+  if(!et&&!st&&en) h+=foldHTML("перевод (JP→EN)",'<span lang="ja">'+esc(maskWord(en,w))+'</span>',"",true);
+  if(ex) h+='<div class="drillSent" lang="ja">'+esc(maskWord(ex,w))+'</div>';
+  return h;
+}
 function afterText(days){
   if(days<=0) return "сегодня";
   if(days===1) return "завтра";
@@ -1208,20 +1329,23 @@ function renderDrill(){
   var d=S.drill; if(!d) return;
   if(d.i<0) d.i=0; if(d.i>=d.list.length) d.i=d.list.length-1;
   var c=d.list[d.i], read=byLabel(c,"чтение"), ex=exampleText(c), et=etymOf(c), st=storyOf(c);
-  var learn=d.mode==="learn", hide=learn&&!d.shown;
+  var learn=d.mode==="learn", hide=learn&&!d.shown, back=learn&&isBack(c);
   $("#drillPos").textContent=(learn?"урок "+(d.lesson||"повтор")+" · ":"")+(d.i+1)+" / "+d.list.length;
   $("#drillFill").style.width=((d.i+1)/d.list.length*100)+"%";
   $("#drillRead").hidden=learn; $("#drillLearn").hidden=!learn;
   if(learn){
+    $("#drillShow").textContent=back?"Показать слово":"Показать разбор";
     $("#drillShow").hidden=d.shown;
     $("#drillGrades").hidden=!d.shown;
     if(d.shown){ var pr=gradePreview(c.id);
       $("#gs0").textContent=pr[0]; $("#gs1").textContent=pr[1]; $("#gs2").textContent=pr[2]; }
   }
   $("#drillBody").innerHTML=
-    '<div class="drillWord" lang="ja">'+esc(mainText(c))+'</div>'+
+    (back&&hide?'<p class="backTag">по разбору — вспомните слово</p>'+backHint(c):
+      '<div class="drillHead"><div class="drillWord" lang="ja">'+esc(mainText(c))+'</div>'+
+        (hide?"":sayBtn(mainText(c)))+'</div>')+
     (read&&!hide?'<div class="drillRead" lang="ja">'+esc(read)+'</div>':"")+
-    (hide?'<p class="note" style="margin-top:14px">Вспомните чтение и значение, потом откройте разбор.</p>':"")+
+    (hide&&!back?'<p class="note" style="margin-top:14px">Вспомните чтение и значение, потом откройте разбор.</p>':"")+
     (ex&&!hide?'<div class="drillSent" lang="ja">'+esc(ex)+'</div>':"")+
     (hide?"":'<div class="drillStats"><span>важность '+tierOf(c)+'</span><span>'+c.a+' Again из '+c.n+'</span>'+
       '<span>'+fmtTime(c.t)+'</span>'+(learn&&S.srs[c.id]?'<span>повторов '+(S.srs[c.id].r||0)+'</span>':"")+'</div>')+
@@ -1247,7 +1371,7 @@ $("#list").addEventListener("click",function(e){
     var btn=e.target.closest("[data-act]"); if(!btn) return;
     var cid=btn.closest(".editor").dataset.ed;
     var card=S.cards.filter(function(x){ return x.id===cid; })[0], act=btn.dataset.act;
-    if(act==="done"){ if(S.status[cid]==="done") delete S.status[cid]; else S.status[cid]="done"; touch(cid,"status");
+    if(act==="done"){ if(S.status[cid]==="done") delete S.status[cid]; else { S.status[cid]="done"; scheduleIfNew(cid); } touch(cid,"status");
       saveSoon(); renderHead(); renderChips(); renderList(); }
     if(act==="revert"){ delete S.edits[card.note]; saveSoon(); renderList(); toast("Текст возвращён"); }
     if(act==="drill"){ var pos=0; S._vis.forEach(function(x,i){ if(x.id===cid) pos=i; }); startDrill(S._vis,pos); }
@@ -1274,12 +1398,20 @@ function onEdit(e){
   if(t.dataset.etym){ var v=t.value.trim(); if(v) S.etym[card.id]=v; else delete S.etym[card.id]; touch(card.id,"etym"); saveSoon(); return; }
   if(t.dataset.story){ var w=t.value.trim(); if(w) S.story[card.id]=w; else delete S.story[card.id]; touch(card.id,"story"); saveSoon(); return; }
   if(t.dataset.note){ var nv=t.value.trim(); if(nv) S.notes[card.id]=t.value; else delete S.notes[card.id]; touch(card.id,"notes"); saveSoon(); return; }
+  if(t.dataset.diff){ setDiff(card.id,t.dataset.diff,t.value); t.classList.toggle("filled",!!t.value.trim()); return; }
   var ta=t.closest("textarea[data-k]"); if(!ta) return;
   var f=card.f[+ta.dataset.i];
   setEdit(card,f.key,ta.value,f.v);
   reindexCard(card);
   ta.classList.toggle("changed",ta.value!==f.v);
 }
+function onSay(e){
+  var b=e.target.closest("[data-say]"); if(!b) return;
+  e.preventDefault(); e.stopPropagation();
+  speak(b.dataset.say);
+}
+$("#list").addEventListener("click",onSay,true);
+$("#drill").addEventListener("click",onSay,true);
 $("#list").addEventListener("input",onEdit);
 $("#drill").addEventListener("input",onEdit);
 $("#drill").addEventListener("click",function(e){
@@ -1290,7 +1422,11 @@ $("#drill").addEventListener("click",function(e){
     if(c){ S.drill.list.splice(S.drill.i+1,0,c); pos=S.drill.i+1; } }
   if(pos>=0){ S.drill.i=pos; renderDrill(); $("#drillBody").scrollTop=0; }
 });
-$("#drillShow").onclick=function(){ if(!S.drill) return; S.drill.shown=true; renderDrill(); $("#drillBody").scrollTop=0; };
+$("#drillShow").onclick=function(){
+  if(!S.drill) return;
+  S.drill.shown=true; renderDrill(); $("#drillBody").scrollTop=0;
+  if(S.voice) speak(mainText(S.drill.list[S.drill.i]));
+};
 $("#drillGrades").addEventListener("click",function(e){
   var b=e.target.closest("[data-g]"); if(!b||!S.drill) return;
   var d=S.drill, c=d.list[d.i], g=+b.dataset.g;
@@ -1323,7 +1459,8 @@ $("#drillNext").onclick=function(){ drillMove(1); };
 $("#drillExit").onclick=exitDrill;
 $("#drillDone").onclick=function(){
   var c=S.drill.list[S.drill.i];
-  if(S.status[c.id]==="done") delete S.status[c.id]; else S.status[c.id]="done"; touch(c.id,"status");
+  if(S.status[c.id]==="done") delete S.status[c.id]; else { S.status[c.id]="done"; scheduleIfNew(c.id); }
+  touch(c.id,"status");
   saveSoon(); renderDrill(); setTimeout(function(){ drillMove(1); },180);
 };
 $("#startDrill").onclick=function(){ startDrill(visible(),0); };
@@ -1497,7 +1634,8 @@ function copyCid(){
 function bulkDone(){
   var v=S._vis||[]; if(!v.length){ toast("Список пуст"); return; }
   var all=v.every(function(c){ return S.status[c.id]==="done"; });
-  v.forEach(function(c){ if(all) delete S.status[c.id]; else S.status[c.id]="done"; touch(c.id,"status"); });
+  v.forEach(function(c){ if(all) delete S.status[c.id]; else { S.status[c.id]="done"; scheduleIfNew(c.id); }
+    touch(c.id,"status"); });
   saveSoon(); closeModal(); renderHead(); renderChips(); renderList();
   toast(all?"Отметки сняты":"Отмечено: "+v.length);
 }
@@ -1507,7 +1645,7 @@ $("#impBackup").addEventListener("change",function(e){
   fr.onload=async function(){
     try{ var j=JSON.parse(fr.result);
       S.edits=j.edits||{}; S.status=j.status||{}; S.notes=j.notes||{}; S.etym=j.etym||{}; S.story=j.story||{}; S.sent=j.sent||{}; S.lastTask=j.lastTask||null; S.mtime=j.mtime||{}; S.mtimes=j.mtimes||{};
-      S.srs=j.srs||{}; S.lesson=j.lesson||{}; if(j.size>0) S.size=j.size;
+      S.srs=j.srs||{}; S.lesson=j.lesson||{}; S.diff=j.diff||{}; if(j.size>0) S.size=j.size;
       if(j.imports) S.imports=j.imports;
       await saveAll(); closeModal(); renderAll(); toast("Восстановлено");
     }catch(x){ toast("Файл не читается"); } };
@@ -1534,7 +1672,7 @@ function deckInfo(){ return S.sync.deck||{ gist:"", sig:"", at:0, n:0, parts:0 }
 function syncPayload(){
   return { v:9, at:Date.now(), edits:S.edits, status:S.status, notes:S.notes,
            etym:S.etym, story:S.story, sent:S.sent, lastTask:S.lastTask,
-           srs:S.srs, lesson:S.lesson, size:S.size||20,
+           srs:S.srs, lesson:S.lesson, diff:S.diff, size:S.size||20,
            mtime:S.mtime, mtimes:S.mtimes, deck:deckInfo() };
 }
 function partName(n){ return CARDPREFIX+"-"+("0"+n).slice(-2)+".json"; }
@@ -1590,7 +1728,7 @@ function remoteTime(r,key,id){ var e=lastRemote(r,key,id); return e===undefined?
 function mergeTexts(r){
   var added=0, updated=0, removed=0;
   /* srs и lesson — не строки, а объекты и числа: сравниваем их как есть */
-  ["etym","story","notes","status","sent","srs","lesson"].forEach(function(key){
+  ["etym","story","notes","status","sent","srs","lesson","diff"].forEach(function(key){
     var rm=r[key]||{}, mine=S[key]||(S[key]={});
     var same=function(a,b){ return typeof a==="object"||typeof b==="object"
       ? JSON.stringify(a)===JSON.stringify(b) : a===b; };
@@ -1987,21 +2125,17 @@ function openPlan(){
     return '<button class="chip'+(x===size?" on":"")+'" data-size="'+x+'">'+x+'</button>'; }).join("");
   var closed=0;
   list.forEach(function(l){ if(l.готово===l.cards.length) closed++; });
+  /* сначала состояние и действие, настройки — под крышку: экран открывают,
+     чтобы заниматься, а не чтобы крутить ползунки */
   var body=
-    '<p class="note">Карточки разложены по урокам от самых тяжёлых к лёгким: '+
-      'считается число провалов, доля провалов и время ответа. '+
-      'Разбивка держится — новые карточки дописываются в конец.</p>'+
-    '<div class="acts" style="margin-top:10px"><span class="note" style="margin:0">В уроке карточек:</span>'+sizes+
-      '<input id="sizeOwn" type="number" min="1" max="200" value="'+size+'" '+
-      'style="width:74px" aria-label="своё число"></div>'+
     '<div class="planTop">'+
       '<div class="planNum"><b>'+p.новых+'</b>новых</div>'+
       '<div class="planNum"><b>'+p.кповтору+'</b>к повтору</div>'+
       '<div class="planNum"><b>'+closed+' / '+list.length+'</b>уроков закрыто</div>'+
     '</div>'+
     '<div class="acts">'+
-      (p.кповтору?'<button class="btn primary" id="goDue">Повторить '+p.кповтору+'</button>':"")+
-      (p.новых?'<button class="btn'+(p.кповтору?"":" primary")+'" id="goNext">Следующий урок</button>':"")+
+      (p.кповтору?'<button class="btn primary big" id="goDue">Повторить '+p.кповтору+'</button>':"")+
+      (p.новых?'<button class="btn'+(p.кповтору?"":" primary big")+'" id="goNext">Следующий урок</button>':"")+
       (!p.новых&&!p.кповтору?'<p class="note" style="margin:0">На сегодня всё пройдено. Возвращайтесь завтра — или откройте любой урок ниже.</p>':"")+
     '</div>'+
     '<div class="lessons">'+list.map(function(l){
@@ -2015,7 +2149,24 @@ function openPlan(){
           (l.кповтору?' · '+l.кповтору+' к повтору':"")+
           (l.новых&&l.новых<all?' · '+l.новых+' новых':"")+'</span></span>'+
         '<span class="lword" lang="ja">'+esc(mainText(l.cards[0]).slice(0,8))+'</span></button>';
-    }).join("")+'</div>';
+    }).join("")+'</div>'+
+    '<details class="fold"><summary>как это устроено и настройки</summary><div class="body">'+
+      '<p class="note" style="margin:0 0 12px">Карточки разложены по урокам от самых тяжёлых к лёгким: '+
+        'считается число провалов, доля провалов и время ответа. Разбивка держится — '+
+        'новые карточки из свежего экспорта дописываются в конец плана.</p>'+
+      '<div class="acts"><span class="note" style="margin:0">В уроке карточек:</span>'+sizes+
+        '<input id="sizeOwn" type="number" min="1" max="200" value="'+size+'" '+
+        'style="width:70px" aria-label="своё число"></div>'+
+      '<div class="acts" style="margin-top:8px">'+
+        '<label class="btn ghost"><input type="checkbox" id="optBack"'+(S.back!==false?" checked":"")+
+          '> иногда спрашивать наоборот</label>'+
+        (canSpeak()?'<label class="btn ghost"><input type="checkbox" id="optVoice"'+(S.voice?" checked":"")+
+          '> проговаривать вслух</label>':"")+
+      '</div>'+
+      '<p class="note" style="margin:12px 0 0">Повторы простые, как в старом Anki: '+
+        '«не помню» — сегодня же, «с трудом» — завтра и дальше понемногу, '+
+        '«помню» — через два дня, потом всё реже.</p>'+
+    '</div></details>';
   openModal("Уроки", S.cards.length+" карточек в плане", body);
 
   var setSize=async function(v){
@@ -2029,6 +2180,8 @@ function openPlan(){
     var l=e.target.closest("[data-lesson]"); if(l){ startLesson(+l.dataset.lesson); return; }
   };
   var own=$("#sizeOwn"); if(own) own.addEventListener("change",function(){ setSize(+own.value); });
+  var ob=$("#optBack"); if(ob) ob.onchange=function(){ S.back=ob.checked; saveMeta(); };
+  var ov=$("#optVoice"); if(ov) ov.onchange=function(){ S.voice=ov.checked; saveMeta(); };
   var d=$("#goDue"); if(d) d.onclick=function(){ startDue(); };
   var g=$("#goNext"); if(g) g.onclick=function(){
     var first=null;
@@ -2085,7 +2238,7 @@ function openMenu(){
     if(m==="texts"){ exportTexts(); closeModal(); }
     if(m==="backup"){ download("anki_backup.json",JSON.stringify({v:7,edits:S.edits,status:S.status,notes:S.notes,
       etym:S.etym,story:S.story,sent:S.sent,lastTask:S.lastTask,mtime:S.mtime,mtimes:S.mtimes,imports:S.imports,
-      srs:S.srs,lesson:S.lesson,size:lessonSize()},null,1),"application/json"); closeModal(); }
+      srs:S.srs,lesson:S.lesson,diff:S.diff,size:lessonSize()},null,1),"application/json"); closeModal(); }
     if(m==="restore") $("#impBackup").click();
     if(m==="sync") openSync();
     if(m==="help") openHelp();
@@ -2102,6 +2255,15 @@ function openHelp(){
       'Дальше три кнопки — они же назначают, когда карточка вернётся: '+
       '<b>не помню</b> — сегодня же, <b>с трудом</b> — завтра и медленно вширь, <b>помню</b> — через два дня, '+
       'потом всё реже. Расписание простое, как в старом Anki, и своё: в самой Anki ничего не меняется.</p>'+
+    '<p style="margin-top:8px"><b>Чтобы слово перестало путаться.</b> В карточке под «похожими словами» '+
+      'есть строка «в чём разница» — она хранится на паре и видна с обеих сторон. '+
+      'Это главное лекарство: путаница между близкими словами держит их в провалах прочнее, чем сложность.</p>'+
+    '<p style="margin-top:8px"><b>Иногда наоборот.</b> Раз в три повтора урок показывает разбор и просит '+
+      'вспомнить само слово — в Anki вы его только узнаёте и никогда не производите. '+
+      'Отключается там же, в уроках. Рядом — кнопка 🔊: слово читает голос вашей системы, '+
+      'ничего не качается и работает без интернета.</p>'+
+    '<p style="margin-top:8px"><b>Фишка «знаю, но медленно»</b> отбирает карточки, где провалов мало, '+
+      'а ответ долгий. Это будущие проблемы: память ещё хрупкая, хотя ошибок пока нет.</p>'+
     '<p style="margin-top:8px"><b>Круг работы:</b> отобрать фильтром «без разбора» → «Задание для нейросети» → скачать JSON → отдать нейросети с промптом → её ответ перетащить обратно сюда → читать в режиме «Читать по одной».</p>'+
     '<p style="margin-top:8px"><b>Клавиши:</b> <span class="kbd">/</span> поиск · <span class="kbd">j</span><span class="kbd">k</span> по списку · '+
     '<span class="kbd">Enter</span> раскрыть · <span class="kbd">d</span> отметить · <span class="kbd">s</span> читать по одной · <span class="kbd">Esc</span> закрыть. '+
@@ -2118,7 +2280,7 @@ function confirmWipe(){
     var ks=await slist("ankidash:");
     for(var i=0;i<ks.length;i++) await sdel(ks[i]);
     S.cards=[]; S.edits={}; S.status={}; S.notes={}; S.etym={}; S.story={}; S.sent={}; S.lastTask=null;
-    S.mtime={}; S.mtimes={}; S.srs={}; S.lesson={}; S.imports=[]; S.deck=null;
+    S.mtime={}; S.mtimes={}; S.srs={}; S.lesson={}; S.diff={}; S.imports=[]; S.deck=null;
     S.open=null; S.filters={}; setHas(false);
     closeModal(); renderAll(); $("#progress").textContent=""; toast("Очищено");
   };
@@ -2178,7 +2340,8 @@ document.addEventListener("keydown",function(e){
     var c=S._vis[S.cursor]; if(c){ S.open=S.open===c.id?null:c.id; renderList(); } return; }
   if(e.key==="d"&&S.cursor>=0){ e.preventDefault();
     var t=S._vis[S.cursor]; if(!t) return;
-    if(S.status[t.id]==="done") delete S.status[t.id]; else S.status[t.id]="done"; touch(t.id,"status");
+    if(S.status[t.id]==="done") delete S.status[t.id]; else { S.status[t.id]="done"; scheduleIfNew(t.id); }
+  touch(t.id,"status");
     saveSoon(); renderHead(); renderChips(); renderList(); }
 });
 
