@@ -174,7 +174,11 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .kjword .n{font-family:var(--mono);font-size:11px;color:var(--hard)}
 /* знак прямо в строке списка: долгое нажатие открывает разбор.
    Подчёркивание — «разобран», оно же намекает, что по знаку можно нажать. */
-.kjt{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+/* .term — флекс с отступом между элементами, поэтому слово целиком лежит
+   в одном .wordtxt: иначе каждый знак стал бы отдельным элементом и между
+   знаками появился бы отступ. Знаки внутри — строчные, впритык. */
+.wordtxt{min-width:0}
+.kjt{display:inline;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .kjt.filled{border-bottom:2px solid var(--accent)}
 /* ---------- экран знаков ---------- */
 .ksheet{position:fixed;inset:0;background:var(--paper);z-index:60;display:flex;flex-direction:column}
@@ -1777,7 +1781,8 @@ function rowHTML(c,i){
   var col=colorOf(c), read=byLabel(c,"чтение");
   return '<button class="row'+(i===S.cursor?" cursor":"")+'" data-i="'+i+'" style="--c:'+col+'">'+
     '<span class="bar"></span><span class="tier">'+tierOf(c)+'</span>'+
-    '<span class="main"><span class="term" lang="ja">'+kanjiSpans(mainText(c).slice(0,60))+
+    '<span class="main"><span class="term" lang="ja"><span class="wordtxt">'+
+      kanjiSpans(mainText(c).slice(0,60))+'</span>'+
       (read?'<span class="read">'+esc(read)+'</span>':"")+
       (etymOf(c)?'<span class="dot" title="есть разбор"></span>':"")+
       (S.status[c.id]==="done"?'<span class="check">✓</span>':"")+'</span></span>'+
