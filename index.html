@@ -150,6 +150,53 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .simdiff{width:100%;margin-top:6px;font:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--rule);
          border-radius:3px;background:var(--paper);color:var(--ink);resize:vertical}
 .simdiff.filled{border-color:var(--accent)}
+/* ---------- знаки ---------- */
+.kjrow{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.kjlab{font-family:var(--mono);font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink3)}
+.kj{font-family:var(--jp);font-size:19px;line-height:1;min-width:38px;min-height:38px;padding:4px 8px;
+    border:1px solid var(--rule);border-radius:3px;background:var(--panel);color:var(--ink);cursor:pointer}
+.kj:hover{border-color:var(--ink2)}
+.kj.filled{border-color:var(--accent);border-bottom-width:3px}
+.kjhead{display:flex;gap:14px;align-items:flex-start;margin:8px 0 4px}
+.kjbig{font-family:var(--jp);font-size:64px;line-height:1;flex:none}
+.kjfacts{flex:1;min-width:0}
+.kjmean{font-family:var(--serif);font-size:19px;line-height:1.35;color:var(--ink)}
+.kjmean.none{font-family:var(--ui);font-size:13px;color:var(--ink3)}
+.kjread{font-family:var(--jp);font-size:14px;color:var(--ink2);margin-top:4px}
+.kjfacts .note{margin-top:6px}
+.kjwords{margin-top:14px}
+.kjwrap{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;max-height:33vh;overflow-y:auto;
+        overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.kjword{font:inherit;font-family:var(--jp);font-size:15px;padding:6px 10px;border:1px solid var(--rule);
+        border-radius:3px;background:var(--panel);color:var(--ink);cursor:pointer;display:inline-flex;
+        align-items:baseline;gap:7px;min-height:38px}
+.kjword:hover{border-color:var(--ink2)}
+.kjword .n{font-family:var(--mono);font-size:11px;color:var(--hard)}
+/* знак прямо в строке списка: долгое нажатие открывает разбор.
+   Подчёркивание — «разобран», оно же намекает, что по знаку можно нажать. */
+.kjt{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.kjt.filled{border-bottom:2px solid var(--accent)}
+/* ---------- экран знаков ---------- */
+.ksheet{position:fixed;inset:0;background:var(--paper);z-index:60;display:flex;flex-direction:column}
+.ksheet .kstat{flex:1;font-family:var(--mono);font-size:11.5px;color:var(--ink3);min-width:0;
+               overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kbar{padding:10px 14px;border-bottom:1px solid var(--rule);display:flex;flex-direction:column;gap:8px}
+.kbar input{font:inherit;font-size:16px;padding:8px 10px;border:1px solid var(--rule);border-radius:3px;
+            background:var(--panel);color:var(--ink);width:100%}
+.kgrid{flex:1;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+       padding:12px 14px calc(20px + env(safe-area-inset-bottom));
+       display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;align-content:start}
+.ktile{font:inherit;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 5px 8px;
+       border:1px solid var(--rule);border-radius:3px;background:var(--panel);color:var(--ink);
+       cursor:pointer;min-height:92px;text-align:center;overflow:hidden}
+.ktile:hover{border-color:var(--ink2)}
+.ktile.filled{border-bottom-width:3px;border-bottom-color:var(--accent)}
+.ktile .c{font-family:var(--jp);font-size:30px;line-height:1.1}
+.ktile .w{font-family:var(--mono);font-size:10.5px;color:var(--hard)}
+.ktile .m{font-size:11px;line-height:1.25;color:var(--ink3);max-width:100%;
+          display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ktile.filled .m{color:var(--ink2)}
+.kempty{grid-column:1/-1;padding:26px 0;text-align:center;color:var(--ink3);font-size:13px}
 .tally{margin-top:14px;border-top:1px solid var(--rule);padding-top:12px}
 .tallyLine{font-size:13px;color:var(--ink3);line-height:1.6}
 .tallyLine b{color:var(--ink);font-weight:600}
@@ -219,7 +266,8 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 @keyframes pulse{0%,100%{opacity:.30}50%{opacity:.62}}
 @media (prefers-reduced-motion:reduce){.bootRow i{animation:none}}
 
-.modal{position:fixed;inset:0;background:rgba(8,10,9,.6);display:grid;place-items:center;padding:18px;z-index:50;overscroll-behavior:contain}
+/* z-index выше урока (60): окно знака открывается прямо из урока */
+.modal{position:fixed;inset:0;background:rgba(8,10,9,.6);display:grid;place-items:center;padding:18px;z-index:65;overscroll-behavior:contain}
 .sheet{background:var(--paper);border:1px solid var(--rule);border-radius:4px;max-width:680px;width:100%;max-height:84vh;overscroll-behavior:contain;
        overflow:auto;padding:18px}
 .sheetHead{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
@@ -288,6 +336,12 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .lessons{max-height:40vh}
   .grades .btn{min-height:52px;padding:8px 6px;font-size:13px}
   .planNum{flex:1 1 72px}
+  .kj{min-width:44px;min-height:44px;font-size:21px}
+  .kjword{min-height:44px;font-size:16px}
+  .kjbig{font-size:52px}
+  .kjwrap{max-height:30vh}
+  .kgrid{grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:7px;padding:10px}
+  .ktile{min-height:96px}
   .count{width:100%;text-align:right}
 
   .row{grid-template-columns:3px 20px 1fr;gap:8px;padding:12px 2px;min-height:56px}
@@ -396,6 +450,7 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   <div class="line3">
     <button class="btn primary big" id="lessonBtn" hidden>Заниматься</button>
     <button class="btn" id="startDrill">Читать по одной</button>
+    <button class="btn" id="kanjiBtn">Знаки</button>
     <span class="spacer"></span>
     <span class="count" id="count"></span>
   </div>
@@ -419,6 +474,23 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
     <p class="note" id="modalNote"></p>
     <div id="modalBody"></div>
   </div>
+</div>
+
+<div class="ksheet" id="ksheet" hidden>
+  <div class="drillTop">
+    <button class="btn ghost" id="kExit">К списку</button>
+    <span class="kstat" id="kStat"></span>
+    <button class="btn" id="kTaskBtn">Задание</button>
+  </div>
+  <div class="kbar">
+    <input type="search" id="kFind" placeholder="знак, значение, мнемоника…" autocomplete="off">
+    <div class="chips" id="kChips">
+      <button class="chip on" data-kv="all">все</button>
+      <button class="chip" data-kv="todo">не разобраны</button>
+      <button class="chip" data-kv="done">разобраны</button>
+    </div>
+  </div>
+  <div class="kgrid" id="kGrid"></div>
 </div>
 
 <div class="drill" id="drill" hidden>
@@ -519,13 +591,14 @@ function hadCards(){ try{ return LS ? LS.getItem(HAS) : null; }catch(e){ return 
 var K={ meta:"ankidash:meta", cards:"ankidash:cards:", edits:"ankidash:edits",
         status:"ankidash:status", notes:"ankidash:notes", etym:"ankidash:etym", story:"ankidash:story",
         sent:"ankidash:sent", mtime:"ankidash:mtime", mtimes:"ankidash:mtimes", sync:"ankidash:sync",
-        srs:"ankidash:srs", lesson:"ankidash:lesson", diff:"ankidash:diff", log:"ankidash:log" };
+        srs:"ankidash:srs", lesson:"ankidash:lesson", diff:"ankidash:diff", log:"ankidash:log",
+        kanji:"ankidash:kanji" };
 
 /* ---------- состояние ---------- */
 var TIER={ A:12, B:8, C:4 };
 var S={ cards:[], edits:{}, status:{}, notes:{}, etym:{}, story:{}, sent:{}, lastTask:null,
         mtime:{}, mtimes:{}, cardsAt:0, sync:{}, imports:[], deck:null,
-        srs:{}, lesson:{}, diff:{}, log:{}, size:20, back:true, voice:false, sound:true, devId:"",
+        srs:{}, lesson:{}, diff:{}, log:{}, kanji:{}, kview:{f:"all",q:"",L:null}, size:20, back:true, voice:false, sound:true, devId:"",
         filters:{}, sort:"again", q:"", page:0, PAGE:60, open:null, cursor:-1,
         theme:"auto", drill:null, _vis:[], _idx:{read:{},kanji:{}}, _byId:{} };
 var $=function(s){ return document.querySelector(s); };
@@ -615,13 +688,25 @@ function pick(cols,names){
 }
 function detect(cols){
   var c=cols.map(function(x){ return String(x).toLowerCase().replace(/^\ufeff/,"").trim(); });
-  if(pick(cols,["этимология","etymology","разбор","story","интересное","история"])) return "answer";
   if(c.indexOf("ts_iso")>=0||c.indexOf("ts_ms")>=0) return "reviews";
   if(c.indexOf("review_date")>=0&&c.indexOf("review_count")>=0) return "skip";
   if(c.indexOf("difficulty_score")>=0||c.indexOf("leech_rule")>=0) return "skip";
-  if(c.indexOf("total_reviews")>=0||(c.indexOf("card_id")>=0&&c.indexOf("again_count")>=0)) return "cards";
+  /* Экспорт статистики узнаём по его собственным колонкам — и раньше, чем по названию
+     поля с разбором. У многих колод есть своё поле «Story» или «Этимология»:
+     такой card_summary.csv принимался за ответ нейросети и не загружался вовсе,
+     а человек видел «Сначала загрузите card_summary.csv» ровно тогда,
+     когда он его и загружал. */
+  var stats = c.indexOf("total_reviews")>=0 || c.indexOf("again_count")>=0 ||
+              !!pick(cols,["again_rate","retention","retention_rate","lapses","errors"]);
+  /* по карточкам или по колодам: у файла с колодами нет card_id */
+  if(stats&&(c.indexOf("card_id")>=0||c.indexOf("total_reviews")>=0)) return "cards";
+  /* разбор знаков: у него своя колонка kanji и нет card_id. Проверяем до «answer»,
+     потому что колонки etymology и story есть и там, и там */
+  if(pick(cols,["kanji","знак","иероглиф"])&&
+     pick(cols,["meaning","значение","radicals","радикалы","mnemonic","мнемоника","readings","чтения"])) return "kanji";
+  if(pick(cols,["этимология","etymology","разбор","story","интересное","история"])) return "answer";
   if(c.indexOf("deck_name")>=0&&c.indexOf("review_count")>=0) return "deck";
-  if(pick(cols,["retention","retention_rate","lapses","errors","again_count"])) return "cards";
+  if(stats) return "cards";
   return "unknown";
 }
 /* Ключ карточки. Раньше строки без card_id получали «row0», «row1» — и та же
@@ -757,6 +842,14 @@ function weightOf(c){
    статистики уроки бы перетасовывались и «закрытых» было бы не собрать.
    Новые карточки просто дописываются в конец плана. */
 function lessonSize(){ var n=+S.size||20; return n>0?n:20; }
+/* У разбивки по урокам своё время правки на карточку. Без него смена
+   размера урока на одном устройстве частично откатывалась старым планом
+   из хранилища: слияние сравнивало номера уроков по чужому часу. */
+function touchLesson(id){
+  if(!S.mtimes.lesson) S.mtimes.lesson={};
+  S.mtimes.lesson[id]=Date.now();
+  S.sync.dirty=true;
+}
 function assignLessons(){
   var size=lessonSize(), used={}, maxN=0, i;
   for(i=0;i<S.cards.length;i++){
@@ -772,7 +865,8 @@ function assignLessons(){
   for(i=0;i<free.length;i++){
     while(num<=maxN&&(used[num]||0)>=size) num++;
     if(num>maxN){ maxN=num; }
-    S.lesson[free[i].id]=num; used[num]=(used[num]||0)+1; added++;
+    S.lesson[free[i].id]=num; touchLesson(free[i].id);
+    used[num]=(used[num]||0)+1; added++;
   }
   return added;
 }
@@ -1021,13 +1115,14 @@ function mergeAnswer(rows,cols){
 }
 async function handleFiles(files){
   var prog=$("#progress"), say=function(m){ prog.textContent=m; toast(m,4000); };
-  var cards=null, ans=null, deck=null;
+  var cards=null, ans=null, deck=null, kan=null;
   for(var i=0;i<files.length;i++){
     var f=files[i]; prog.textContent="Читаю "+f.name+"…";
     try{
       var p=await parseFile(f,function(m){ prog.textContent=m; });
       var kind=detect(p.cols);
       if(kind==="reviews"||kind==="skip"){ say(f.name+": этот файл не нужен, пропускаю"); continue; }
+      if(kind==="kanji"){ kan=mergeKanji(p.rows,p.cols); continue; }
       if(kind==="answer"){
         if(!S.cards.length){ say("Сначала загрузите card_summary.csv"); continue; }
         ans=mergeAnswer(p.rows,p.cols); continue;
@@ -1057,6 +1152,7 @@ async function handleFiles(files){
     S.page=0;
   }
   if(ans){ buildIndex(); await saveAll(); say("Разборов добавлено: "+ans.ok+(ans.miss?", не нашёл карточку для "+ans.miss:"")); }
+  if(kan){ await saveTexts(); say("Знаков разобрано: "+kan.ok+(kan.miss?", пропущено строк: "+kan.miss:"")); }
   renderAll();
 }
 
@@ -1100,6 +1196,7 @@ async function saveAll(){
   await sset(K.lesson,JSON.stringify(S.lesson));
   await sset(K.diff,JSON.stringify(S.diff));
   await sset(K.log,JSON.stringify(S.log));
+  await sset(K.kanji,JSON.stringify(S.kanji));
   await sset(K.mtime,JSON.stringify(S.mtime));
   await sset(K.mtimes,JSON.stringify(S.mtimes));
   await sset(K.sync,JSON.stringify(S.sync));
@@ -1117,6 +1214,7 @@ async function saveTexts(){
   await sset(K.lesson,JSON.stringify(S.lesson));
   await sset(K.diff,JSON.stringify(S.diff));
   await sset(K.log,JSON.stringify(S.log));
+  await sset(K.kanji,JSON.stringify(S.kanji));
   await sset(K.mtime,JSON.stringify(S.mtime));
   await sset(K.mtimes,JSON.stringify(S.mtimes));
   await sset(K.sync,JSON.stringify(S.sync));
@@ -1138,6 +1236,7 @@ function saveSoon(){ clearTimeout(saveT); saveT=setTimeout(async function(){
   await sset(K.story,JSON.stringify(S.story)); await sset(K.sent,JSON.stringify(S.sent));
   await sset(K.srs,JSON.stringify(S.srs)); await sset(K.lesson,JSON.stringify(S.lesson));
   await sset(K.diff,JSON.stringify(S.diff)); await sset(K.log,JSON.stringify(S.log));
+  await sset(K.kanji,JSON.stringify(S.kanji));
   await sset(K.mtime,JSON.stringify(S.mtime)); await sset(K.mtimes,JSON.stringify(S.mtimes));
   await sset(K.sync,JSON.stringify(S.sync));
   await saveMeta();
@@ -1159,6 +1258,7 @@ async function reloadTexts(){
   var ls=await sget(K.lesson); if(ls) try{ S.lesson=JSON.parse(ls)||{}; }catch(x){}
   var df=await sget(K.diff); if(df) try{ S.diff=JSON.parse(df)||{}; }catch(x){}
   var lg=await sget(K.log); if(lg) try{ S.log=JSON.parse(lg)||{}; }catch(x){}
+  var kn=await sget(K.kanji); if(kn) try{ S.kanji=JSON.parse(kn)||{}; }catch(x){}
   var mt=await sget(K.mtime); if(mt) try{ S.mtime=JSON.parse(mt); }catch(x){}
   var ms=await sget(K.mtimes); if(ms) try{ S.mtimes=JSON.parse(ms)||{}; }catch(x){}
   var a=document.activeElement;
@@ -1191,6 +1291,7 @@ async function loadAll(){
   var ls=await sget(K.lesson); if(ls) try{ S.lesson=JSON.parse(ls)||{}; }catch(x){}
   var df=await sget(K.diff); if(df) try{ S.diff=JSON.parse(df)||{}; }catch(x){}
   var lg=await sget(K.log); if(lg) try{ S.log=JSON.parse(lg)||{}; }catch(x){}
+  var kn=await sget(K.kanji); if(kn) try{ S.kanji=JSON.parse(kn)||{}; }catch(x){}
   var mt=await sget(K.mtime); if(mt) try{ S.mtime=JSON.parse(mt); }catch(x){}
   var mts=await sget(K.mtimes); if(mts) try{ S.mtimes=JSON.parse(mts)||{}; }catch(x){}
   buildIndex();
@@ -1285,6 +1386,331 @@ function similarOf(c){
   return homo.slice(0,4).concat(kin.slice(0,Math.max(0,5-Math.min(homo.length,4))));
 }
 
+
+/* ---------- знаки ----------
+
+   Кандзи — то, что общее у половины залипших карточек: один и тот же знак
+   тянет вниз десяток слов. Поэтому у него своя карточка, и она отвечает
+   на вопрос «где он мне мешает»: список слов из вашей же колоды считается
+   сам, по индексу, который уже собран для «похожих».
+
+   Значение, радикалы, этимология, история, мнемоника и порядок черт —
+   ваши тексты. Пишете сами или собираете нейросетью: ⋯ → Задание по кандзи.
+   Никаких встроенных словарей — ничего не качается и ничего не весит. */
+var KRE=/[\u4E00-\u9FFF]/g;
+function kanjiOf(ch){ return S.kanji[ch]||{}; }
+function hasKanji(ch){ var d=S.kanji[ch]; return !!(d&&(d.m||d.e||d.n||d.r)); }
+/* Слова колоды с этим знаком — от самых тяжёлых к лёгким. */
+function kanjiWords(ch){
+  var ids=(S._idx.kanji&&S._idx.kanji[ch])||[], seen={}, out=[];
+  for(var i=0;i<ids.length;i++){
+    var c=S._byId[ids[i]];
+    if(!c||seen[c.id]) continue;
+    seen[c.id]=1; out.push(c);
+  }
+  out.sort(function(a,b){ return weightOf(b)-weightOf(a); });
+  return out;
+}
+/* Сколько тяжести тянет на себе знак: сумма весов слов, где он стоит.
+   По этому числу знаки и выстраиваются в задании — сначала те, что мешают больше. */
+function kanjiLoad(ch){
+  var w=kanjiWords(ch), sum=0;
+  for(var i=0;i<w.length;i++) sum+=weightOf(w[i]);
+  return sum;
+}
+/* один проход по колоде вместо пересчёта на каждое сравнение при сортировке:
+   w — сколько тяжести тянет знак, n — в скольких словах колоды он стоит */
+function kanjiLoads(){
+  var w={}, n={};
+  for(var i=0;i<S.cards.length;i++){
+    var c=S.cards[i], v=weightOf(c), seen={}, kj=mainText(c).match(KRE)||[];
+    for(var k=0;k<kj.length;k++){
+      if(seen[kj[k]]) continue; seen[kj[k]]=1;
+      w[kj[k]]=(w[kj[k]]||0)+v; n[kj[k]]=(n[kj[k]]||0)+1;
+    }
+  }
+  return { w:w, n:n };
+}
+/* Полоска знаков под словом: отсюда открывается разбор знака.
+   Заполненные подчёркнуты — видно, что уже разобрано, а что нет. */
+/* Подчёркивание «знак разобран» ставится при отрисовке, а окно знака живёт
+   поверх списка и урока и их не перерисовывает. Поэтому правим отметку на месте:
+   человек закрыл окно — и сразу видно, что знак теперь разобран. */
+/* Знаки внутри слова в строке списка. Экранируем сначала, оборачиваем потом:
+   подстановка трогает только иероглифы, а они внутри &amp;-последовательностей не встречаются. */
+function kanjiSpans(txt){
+  return esc(txt).replace(KRE,function(ch){
+    return '<span class="kjt'+(hasKanji(ch)?" filled":"")+'" data-kanji="'+ch+'">'+ch+'</span>';
+  });
+}
+function markKanji(ch){
+  var on=hasKanji(ch), els=document.querySelectorAll('[data-kanji="'+ch+'"]');
+  for(var i=0;i<els.length;i++) els[i].classList.toggle("filled",on);
+}
+function kanjiRow(word){
+  var kj=String(word||"").match(KRE)||[], seen={}, out=[];
+  for(var i=0;i<kj.length;i++){
+    if(seen[kj[i]]) continue; seen[kj[i]]=1;
+    out.push('<button class="kj'+(hasKanji(kj[i])?" filled":"")+'" data-kanji="'+esc(kj[i])+
+      '" lang="ja" title="разобрать знак">'+esc(kj[i])+'</button>');
+  }
+  if(!out.length) return "";
+  return '<div class="kjrow"><span class="kjlab">знаки</span>'+out.join("")+'</div>';
+}
+var kSheetT=null;
+var KFIELDS=[
+  { k:"m", lab:"значение",                ph:"что этот знак значит",                              rows:2 },
+  { k:"y", lab:"чтения",                  ph:"он: … кун: …",                                      rows:2 },
+  { k:"r", lab:"радикалы и их значения",  ph:"из каких частей состоит и что значит каждая",       rows:3 },
+  { k:"e", lab:"этимология",              ph:"откуда знак взялся, что изображал вначале",         rows:3, prose:true },
+  { k:"s", lab:"история",                 ph:"что про него любопытно",                            rows:3, prose:true },
+  { k:"n", lab:"мнемоника",               ph:"за что зацепиться, чтобы не путать с соседями",     rows:3, prose:true },
+  { k:"w", lab:"как писать",              ph:"порядок черт словами: сначала …, потом …",          rows:3 }
+];
+function openKanji(ch){
+  var d=kanjiOf(ch), words=kanjiWords(ch), load=Math.round(kanjiLoad(ch));
+  var wlist=words.slice(0,80).map(function(c){
+    return '<button class="kjword" data-kgo="'+esc(c.id)+'" lang="ja">'+esc(mainText(c).slice(0,20))+
+      '<span class="n">'+c.a+'</span></button>';
+  }).join("");
+  var body=
+    '<div class="kjhead">'+
+      '<div class="kjbig" lang="ja">'+esc(ch)+'</div>'+
+      '<div class="kjfacts">'+
+        (d.m?'<div class="kjmean">'+esc(d.m)+'</div>'
+            :'<div class="kjmean none">значение ещё не записано</div>')+
+        (d.y?'<div class="kjread" lang="ja">'+esc(d.y)+'</div>':"")+
+        '<div class="note">в колоде '+скл(words.length,"слово","слова","слов")+
+          (load?' · тянет вес '+load:"")+'</div>'+
+      '</div>'+
+      (canSpeak()?sayBtn(ch):"")+
+    '</div>'+
+    (d.r?foldHTML("радикалы и их значения",esc(d.r),"",true):"")+
+    (d.e?foldHTML("этимология",prose(d.e),"prose",true):"")+
+    (d.n?foldHTML("мнемоника",prose(d.n),"prose",true):"")+
+    (d.s?foldHTML("история",prose(d.s),"prose",false):"")+
+    (d.w?foldHTML("как писать",esc(d.w),"",false):"")+
+    (words.length
+      ? '<div class="kjwords"><p class="subhead">где он мне мешает</p><div class="kjwrap">'+wlist+'</div>'+
+        (words.length>80?'<p class="note">показаны первые 80 из '+words.length+'</p>':"")+
+        '<p class="note">число справа — сколько раз слово провалено. Нажмите на слово, чтобы перейти к нему.</p></div>'
+      : '<p class="note" style="margin-top:14px">В колоде нет слов с этим знаком.</p>')+
+    (!(d.m||d.e||d.n||d.r)
+      ? '<p class="note" style="margin-top:14px">Разбора знака ещё нет — напишите свой ниже '+
+        'или соберите готовые: ⋯ → Задание по кандзи.</p>' : "")+
+    foldHTML("изменить",'<div class="fgrid">'+KFIELDS.map(function(f){
+      return '<div class="f'+(f.prose?" long":"")+'"><label>'+esc(f.lab)+'</label>'+
+        '<textarea rows="'+f.rows+'" data-kf="'+f.k+'" placeholder="'+esc(f.ph)+'">'+esc(d[f.k]||"")+'</textarea></div>';
+    }).join("")+'</div>');
+
+  openModal("Знак "+ch, "", body);
+  $("#modalBody").oninput=function(e){
+    var t=e.target.closest("[data-kf]"); if(!t) return;
+    var o=S.kanji[ch]||{}, v=t.value.trim();
+    if(v) o[t.dataset.kf]=v; else delete o[t.dataset.kf];
+    if(Object.keys(o).length) S.kanji[ch]=o; else delete S.kanji[ch];
+    touch(ch,"kanji"); markKanji(ch); saveSoon();
+    /* экран знаков стоит за окном — освежаем его без спешки, чтобы не дёргать на каждой букве */
+    clearTimeout(kSheetT);
+    kSheetT=setTimeout(function(){ if(!$("#ksheet").hidden) renderKanjiSheet(); },600);
+  };
+  $("#modalBody").onclick=function(e){
+    var g=e.target.closest("[data-kgo]"); if(!g) return;
+    var id=g.dataset.kgo;
+    closeModal();
+    /* из урока не выкидываем: слово подставляется следующим, как у «похожих» */
+    if(S.drill){
+      var pos=-1;
+      S.drill.list.forEach(function(c,i){ if(c.id===id) pos=i; });
+      if(pos<0){ var c=S._byId[id]; if(c){ S.drill.list.splice(S.drill.i+1,0,c); pos=S.drill.i+1; } }
+      if(pos>=0){ S.drill.i=pos; renderDrill(); $("#drillBody").scrollTop=0; }
+      return;
+    }
+    if(!$("#ksheet").hidden) exitKanjiSheet();   /* иначе список останется под экраном знаков */
+    jumpTo(id);
+  };
+}
+/* ---------- экран знаков ----------
+   Справочник и рабочий список: все знаки колоды разом, от самых мешающих.
+   Отсюда видно и что сделано, и за что браться дальше. */
+function kanjiMatch(ch,q){
+  if(!q) return true;
+  if(ch===q) return true;
+  if((q.match(KRE)||[]).indexOf(ch)>=0) return true;   /* вставили целое слово — найдём его знаки */
+  var d=kanjiOf(ch);
+  return ((d.m||"")+" "+(d.y||"")+" "+(d.r||"")+" "+(d.n||"")+" "+(d.e||"")+" "+(d.s||"")+" "+(d.w||""))
+    .toLowerCase().indexOf(q)>=0;
+}
+function renderKanjiSheet(){
+  var L=S.kview.L||(S.kview.L=kanjiLoads()), all=Object.keys(L.w);
+  var done=0, i;
+  for(i=0;i<all.length;i++) if(hasKanji(all[i])) done++;
+  var q=(S.kview.q||"").trim().toLowerCase();
+  var list=all.filter(function(ch){
+    if(S.kview.f==="todo"&&hasKanji(ch)) return false;
+    if(S.kview.f==="done"&&!hasKanji(ch)) return false;
+    return kanjiMatch(ch,q);
+  });
+  list.sort(function(a,b){ return (L.w[b]||0)-(L.w[a]||0); });
+  var cut=list.length>400, show=cut?list.slice(0,400):list;
+  var html=show.map(function(ch){
+    var d=kanjiOf(ch), n=L.n[ch]||0;
+    return '<button class="ktile'+(d.m?" filled":"")+'" data-kanji="'+esc(ch)+'">'+
+      '<span class="c" lang="ja">'+esc(ch)+'</span>'+
+      '<span class="w">'+Math.round(L.w[ch]||0)+'</span>'+
+      '<span class="m">'+(d.m?esc(d.m):скл(n,"слово","слова","слов"))+'</span></button>';
+  }).join("");
+  if(!show.length) html='<p class="kempty">'+(q?"По этому запросу знаков нет.":"Здесь пусто.")+'</p>';
+  else if(cut) html+='<p class="kempty">показаны первые 400 из '+list.length+' — сузьте поиском</p>';
+  var g=$("#kGrid"), sc=g.scrollTop;
+  g.innerHTML=html; g.scrollTop=sc;
+  $("#kStat").textContent="знаков "+all.length+" · разобрано "+done+
+    (list.length!==all.length?" · показано "+list.length:"");
+}
+function openKanjiSheet(){
+  if(!S.cards.length){ toast("Сначала загрузите card_summary.csv"); return; }
+  S.kview.L=kanjiLoads();
+  $("#ksheet").hidden=false; document.body.style.overflow="hidden";
+  renderKanjiSheet();
+}
+function exitKanjiSheet(){
+  $("#ksheet").hidden=true; document.body.style.overflow=""; S.kview.L=null; renderAll();
+}
+$("#kanjiBtn").onclick=openKanjiSheet;
+$("#kExit").onclick=exitKanjiSheet;
+$("#kTaskBtn").onclick=function(){ openKanjiTask(true); };
+$("#kGrid").addEventListener("click",function(e){
+  var t=e.target.closest("[data-kanji]"); if(t) openKanji(t.dataset.kanji);
+});
+var kFindT=null;
+$("#kFind").addEventListener("input",function(){
+  clearTimeout(kFindT);
+  kFindT=setTimeout(function(){ S.kview.q=$("#kFind").value; renderKanjiSheet(); },160);
+});
+$("#kChips").addEventListener("click",function(e){
+  var b=e.target.closest("[data-kv]"); if(!b) return;
+  S.kview.f=b.dataset.kv;
+  [].forEach.call($("#kChips").children,function(x){ x.classList.toggle("on",x===b); });
+  renderKanjiSheet();
+});
+
+/* ---------- задание по знакам ---------- */
+var KPROMPT =
+"Ниже JSON-массив японских кандзи из моей колоды Anki. Они отсортированы по важности: чем выше,\n"+
+"тем больше слов с этим знаком я проваливаю. В поле \"words_in_deck\" — слова из моей колоды с этим знаком.\n\n"+
+"Для каждого объекта заполни поля на русском языке.\n\n"+
+"\"meaning\" — значение знака: одно-три слова, самое основное. 10–60 символов.\n\n"+
+"\"readings\" — чтения: строкой вида «он: ヨウ · кун: あつか-う». Только те, что реально употребимы.\n\n"+
+"\"radicals\" — из каких частей состоит знак. Каждую часть с новой строки в виде:\n"+
+"«亻 — человек (стоит слева)». Если часть работает как фонетик, так и пометь. 100–400 символов.\n\n"+
+"\"etymology\" — откуда знак взялся: что изображала древняя форма, как значение доехало до нынешнего.\n"+
+"Если знак поздний или составлен искусственно — так и напиши. 200–600 символов.\n\n"+
+"\"story\" — одна интересная правдивая запись про знак: где он заметно встречается, спор о нём,\n"+
+"разница с китайским или старым начертанием, бытовая деталь. Не пересказывай этимологию. 150–500 символов.\n\n"+
+"\"mnemonic\" — за что зацепиться, чтобы не путать его с похожими знаками. Опирайся на разбор по частям\n"+
+"из \"radicals\", а не на выдуманную картинку. Назови 1–2 знака, с которыми его легко спутать,\n"+
+"и скажи, чем они отличаются на вид. 150–400 символов.\n\n"+
+"\"writing\" — порядок черт словами, по шагам: «1) горизонтальная сверху; 2) …». Сколько всего черт — в конце.\n"+
+"Без картинок и без ссылок. 100–400 символов.\n\n"+
+"Правила:\n"+
+"- Только проверяемые факты. Народную этимологию помечай как народную.\n"+
+"- Если надёжных данных нет — так и напиши, не выдумывай.\n"+
+"- Не меняй \"kanji\" и \"words_in_deck\", не переставляй и не добавляй объекты.\n"+
+"- Верни ровно тот же JSON-массив целиком.\n\n"+
+"Оформление текста внутри полей (важно, я это читаю с телефона):\n"+
+"- Дели на смысловые абзацы, между абзацами пустая строка (\\n\\n).\n"+
+"- Ключевые слова и сами японские знаки оборачивай в двойные звёздочки: **фонетик**, **扱**.\n"+
+"- Никаких заголовков решётками, таблиц и нумерованных списков, кроме \"writing\".\n";
+
+function kanjiPool(all,withDone){
+  var src=all?S.cards:((S._vis&&S._vis.length)?S._vis:S.cards), seen={}, out=[];
+  for(var i=0;i<src.length;i++){
+    var kj=mainText(src[i]).match(KRE)||[];
+    for(var k=0;k<kj.length;k++){ if(seen[kj[k]]) continue; seen[kj[k]]=1; out.push(kj[k]); }
+  }
+  if(!withDone) out=out.filter(function(ch){ return !hasKanji(ch); });
+  var L=kanjiLoads().w;
+  out.sort(function(a,b){ return (L[b]||0)-(L[a]||0); });
+  return out;
+}
+function kanjiTaskRows(list){
+  return list.map(function(ch,i){
+    var w=kanjiWords(ch);
+    return { rank:i+1, kanji:ch, words_in_deck:w.slice(0,10).map(mainText).join("、"),
+      in_deck:w.length, again_total:w.reduce(function(a,c){ return a+c.a; },0),
+      meaning:"", readings:"", radicals:"", etymology:"", story:"", mnemonic:"", writing:"" };
+  });
+}
+function openKanjiTask(allDeck){
+  if(!S.cards.length){ toast("Сначала загрузите card_summary.csv"); return; }
+  var есть=Object.keys(S.kanji).filter(function(ch){ return hasKanji(ch); }).length;
+  openModal("Задание по кандзи","знаки идут от самых мешающих к остальным",
+    '<p class="note" id="ktaskInfo"></p>'+
+    '<p class="note">Разобрано знаков: '+есть+'</p>'+
+    '<div class="acts" style="margin-top:12px">'+
+      '<label class="btn ghost"><input type="checkbox" id="kAll"> по всей колоде, а не по списку</label>'+
+      '<label class="btn ghost"><input type="checkbox" id="kDone"> и уже разобранные</label>'+
+      '<label class="btn ghost">знаков <select id="kN" style="margin-left:6px">'+
+        '<option value="30">30</option><option value="60" selected>60</option>'+
+        '<option value="150">150</option><option value="0">все</option></select></label>'+
+    '</div>'+
+    '<div class="acts"><button class="btn primary" id="kJson">Скачать JSON</button>'+
+      '<button class="btn" id="kCsv">CSV</button>'+
+      '<button class="btn ghost" id="kPrompt">Копировать промпт</button></div>'+
+    '<p class="note" style="margin-top:10px">Ответ нейросети перетащите обратно в приложение — '+
+      'разборы знаков разойдутся по знакам сами. Знак открывается нажатием на него '+
+      'в раскрытой карточке или в уроке.</p>'+
+    '<div class="chunk"><textarea id="kPromptBox" readonly>'+esc(KPROMPT)+'</textarea></div>');
+  var pool=function(){ return kanjiPool($("#kAll").checked,$("#kDone").checked); };
+  var take=function(){ var n=+$("#kN").value, p=pool(); return n?p.slice(0,n):p; };
+  var info=function(){
+    var p=pool(), t=take();
+    $("#ktaskInfo").textContent="Готово к выгрузке: "+p.length+". В файл попадёт: "+t.length+
+      ($("#kDone").checked?"":". Пропускаю те, у которых значение уже есть.");
+  };
+  ["kAll","kDone","kN"].forEach(function(id){ $("#"+id).addEventListener("change",info); });
+  if(allDeck) $("#kAll").checked=true;          /* с экрана знаков считаем по всей колоде */
+  info();
+  $("#kJson").onclick=function(){
+    var list=take(); if(!list.length){ toast("Нечего выгружать — всё уже разобрано"); return; }
+    download("kanji_task_"+list.length+".json",JSON.stringify(kanjiTaskRows(list),null,1),"application/json");
+    toast("Выгружено знаков: "+list.length);
+  };
+  $("#kCsv").onclick=function(){
+    var list=take(); if(!list.length){ toast("Нечего выгружать — всё уже разобрано"); return; }
+    var rows=kanjiTaskRows(list);
+    var cols=["rank","kanji","words_in_deck","in_deck","again_total","meaning","readings","radicals","etymology","story","mnemonic","writing"];
+    var lines=[cols.join(",")];
+    rows.forEach(function(r){ lines.push(cols.map(function(k){ return csvCell(r[k]); }).join(",")); });
+    download("kanji_task_"+rows.length+".csv",lines.join("\n"));
+    toast("Выгружено знаков: "+rows.length);
+  };
+  $("#kPrompt").onclick=function(){ copy(KPROMPT); };
+}
+/* ответ нейросети про знаки: раскладываем по знакам, чужого не трогаем */
+function mergeKanji(rows,cols){
+  var cK=pick(cols,["kanji","знак","иероглиф"]);
+  if(!cK) return { ok:0, miss:0 };
+  var map={ m:["meaning","значение"], y:["readings","чтения","reading"],
+            r:["radicals","радикалы","радикал"], e:["etymology","этимология"],
+            s:["story","история","интересное"], n:["mnemonic","мнемоника"],
+            w:["writing","strokes","как_писать","порядок_черт"] };
+  var col={}; Object.keys(map).forEach(function(k){ col[k]=pick(cols,map[k]); });
+  var ok=0, miss=0;
+  rows.forEach(function(r){
+    var raw=String(r[cK]==null?"":r[cK]).trim(), m=raw.match(KRE);
+    if(!m||!m.length){ miss++; return; }
+    var ch=m[0], o=S.kanji[ch]||{}, got=false;
+    Object.keys(map).forEach(function(k){
+      if(!col[k]) return;
+      var v=String(r[col[k]]==null?"":r[col[k]]).trim();
+      if(v){ o[k]=v; got=true; }
+    });
+    if(got){ S.kanji[ch]=o; touch(ch,"kanji"); ok++; } else miss++;
+  });
+  return { ok:ok, miss:miss };
+}
+
 /* ---------- выборка ---------- */
 var FILTERS={
   tierA:function(c){ return c.a>=TIER.A; },
@@ -1351,7 +1777,7 @@ function rowHTML(c,i){
   var col=colorOf(c), read=byLabel(c,"чтение");
   return '<button class="row'+(i===S.cursor?" cursor":"")+'" data-i="'+i+'" style="--c:'+col+'">'+
     '<span class="bar"></span><span class="tier">'+tierOf(c)+'</span>'+
-    '<span class="main"><span class="term" lang="ja">'+esc(mainText(c).slice(0,60))+
+    '<span class="main"><span class="term" lang="ja">'+kanjiSpans(mainText(c).slice(0,60))+
       (read?'<span class="read">'+esc(read)+'</span>':"")+
       (etymOf(c)?'<span class="dot" title="есть разбор"></span>':"")+
       (S.status[c.id]==="done"?'<span class="check">✓</span>':"")+'</span></span>'+
@@ -1418,6 +1844,7 @@ function editorHTML(c){
       (c.dn>0?'<span>+'+c.dn+' повт. с прошлого экспорта</span>':"")+
       (S.sent[c.id]?'<span>выгружено '+esc(S.sent[c.id])+'</span>':"")+
       (canSpeak()?'<span class="grow"></span>'+sayBtn(mainText(c)):"")+'</div>'+
+    kanjiRow(mainText(c))+
     (et?foldHTML("разбор и происхождение",prose(et),"prose",true):"")+
     (st?foldHTML("интересное",prose(st),"prose",true):"")+
     dictFolds(c,!et)+simFold(c)+editFold(c)+
@@ -1454,6 +1881,7 @@ function renderAll(){
   $("#controls").hidden=!S.cards.length;
   $("#sort").value=S.sort;
   renderHead(); renderChips(); renderList(); renderPlanBtn();
+  if(!$("#ksheet").hidden) renderKanjiSheet();
 }
 
 /* ---------- чтение по одной ---------- */
@@ -1541,6 +1969,7 @@ function renderDrill(){
     (read&&!hide?'<div class="drillRead" lang="ja">'+esc(read)+'</div>':"")+
     (hide&&!back?'<p class="note" style="margin-top:14px">Вспомните чтение и значение, потом откройте разбор.</p>':"")+
     (ex&&!hide?'<div class="drillSent" lang="ja">'+esc(ex)+'</div>':"")+
+    (hide?"":kanjiRow(mainText(c)))+
     (hide?"":'<div class="drillStats"><span>важность '+tierOf(c)+'</span><span>'+c.a+' Again из '+c.n+'</span>'+
       '<span>'+fmtTime(c.t)+'</span>'+(learn&&S.srs[c.id]?'<span>повторов '+(S.srs[c.id].r||0)+'</span>':"")+'</div>')+
     (hide?"":
@@ -1559,7 +1988,31 @@ function drillMove(step){
 }
 
 /* ---------- события ---------- */
+/* Долгое нажатие на знаке в строке списка открывает разбор знака,
+   обычный тап по строке по-прежнему раскрывает карточку. Сдвинули палец —
+   значит, это была прокрутка, а не нажатие: отменяем. */
+var LP={ t:null, x:0, y:0, fired:false };
+function lpCancel(){ if(LP.t){ clearTimeout(LP.t); LP.t=null; } }
+$("#list").addEventListener("pointerdown",function(e){
+  LP.fired=false; lpCancel();
+  var t=e.target.closest(".row [data-kanji]"); if(!t) return;
+  LP.x=e.clientX; LP.y=e.clientY;
+  LP.t=setTimeout(function(){
+    LP.t=null; LP.fired=true;
+    if(navigator.vibrate) try{ navigator.vibrate(12); }catch(x){}
+    openKanji(t.dataset.kanji);
+  },420);
+});
+$("#list").addEventListener("pointermove",function(e){
+  if(LP.t&&(Math.abs(e.clientX-LP.x)>10||Math.abs(e.clientY-LP.y)>10)) lpCancel();
+});
+["pointerup","pointercancel","pointerleave"].forEach(function(ev){
+  $("#list").addEventListener(ev,lpCancel);
+});
 $("#list").addEventListener("click",function(e){
+  if(LP.fired){ LP.fired=false; return; }   /* разбор знака уже открыт — карточку не трогаем */
+  /* в раскрытой карточке знаки нажимаются обычным тапом, в строке — только долгим */
+  var kj=e.target.closest("[data-kanji]"); if(kj&&!kj.closest(".row")){ openKanji(kj.dataset.kanji); return; }
   var go=e.target.closest("[data-go]"); if(go){ jumpTo(go.dataset.go); return; }
   if(e.target.closest(".editor")){
     var btn=e.target.closest("[data-act]"); if(!btn) return;
@@ -1609,6 +2062,7 @@ $("#drill").addEventListener("click",onSay,true);
 $("#list").addEventListener("input",onEdit);
 $("#drill").addEventListener("input",onEdit);
 $("#drill").addEventListener("click",function(e){
+  var kj=e.target.closest("[data-kanji]"); if(kj){ openKanji(kj.dataset.kanji); return; }
   var go=e.target.closest("[data-go]"); if(!go) return;
   var id=go.dataset.go,pos=-1;
   S.drill.list.forEach(function(c,i){ if(c.id===id) pos=i; });
@@ -1856,7 +2310,7 @@ $("#impBackup").addEventListener("change",function(e){
   fr.onload=async function(){
     try{ var j=JSON.parse(fr.result);
       S.edits=j.edits||{}; S.status=j.status||{}; S.notes=j.notes||{}; S.etym=j.etym||{}; S.story=j.story||{}; S.sent=j.sent||{}; S.lastTask=j.lastTask||null; S.mtime=j.mtime||{}; S.mtimes=j.mtimes||{};
-      S.srs=j.srs||{}; S.lesson=j.lesson||{}; S.diff=j.diff||{}; S.log=j.log||{}; if(j.size>0) S.size=j.size;
+      S.srs=j.srs||{}; S.lesson=j.lesson||{}; S.diff=j.diff||{}; S.log=j.log||{}; S.kanji=j.kanji||{}; if(j.size>0) S.size=j.size;
       if(j.imports) S.imports=j.imports;
       await saveAll(); closeModal(); renderAll(); toast("Восстановлено");
     }catch(x){ toast("Файл не читается"); } };
@@ -1883,7 +2337,7 @@ function deckInfo(){ return S.sync.deck||{ gist:"", sig:"", at:0, n:0, parts:0 }
 function syncPayload(){
   return { v:9, at:Date.now(), edits:S.edits, status:S.status, notes:S.notes,
            etym:S.etym, story:S.story, sent:S.sent, lastTask:S.lastTask,
-           srs:S.srs, lesson:S.lesson, diff:S.diff, log:S.log, size:S.size||20,
+           srs:S.srs, lesson:S.lesson, diff:S.diff, log:S.log, kanji:S.kanji, size:S.size||20,
            mtime:S.mtime, mtimes:S.mtimes, deck:deckInfo() };
 }
 function partName(n){ return CARDPREFIX+"-"+("0"+n).slice(-2)+".json"; }
@@ -1939,7 +2393,7 @@ function remoteTime(r,key,id){ var e=lastRemote(r,key,id); return e===undefined?
 function mergeTexts(r){
   var added=0, updated=0, removed=0;
   /* srs и lesson — не строки, а объекты и числа: сравниваем их как есть */
-  ["etym","story","notes","status","sent","srs","lesson","diff","log"].forEach(function(key){
+  ["etym","story","notes","status","sent","srs","lesson","diff","log","kanji"].forEach(function(key){
     var rm=r[key]||{}, mine=S[key]||(S[key]={});
     var same=function(a,b){ return typeof a==="object"||typeof b==="object"
       ? JSON.stringify(a)===JSON.stringify(b) : a===b; };
@@ -2048,7 +2502,8 @@ async function gist(method,path,body){
 }
 function counts(o){
   return { et:Object.keys(o.etym||{}).length, st:Object.keys(o.story||{}).length,
-           nt:Object.keys(o.notes||{}).length, dn:Object.keys(o.status||{}).length };
+           nt:Object.keys(o.notes||{}).length, dn:Object.keys(o.status||{}).length,
+           kj:Object.keys(o.kanji||{}).length };
 }
 /* тихий обмен всё-таки подаёт голос, когда что-то приехало:
    иначе непонятно, откуда на экране взялись чужие отметки */
@@ -2058,7 +2513,8 @@ function arrived(t,cards){
     (t.updated?", обновлено "+t.updated:"")+(t.removed?", убрано "+t.removed:"")+
     ((cards&&cards.added)?", карточек новых "+cards.added:""),4000);
 }
-function countsText(c){ return c.et+" разборов, "+c.st+" интересного, "+c.nt+" заметок, "+c.dn+" проработано"; }
+function countsText(c){ return c.et+" разборов, "+c.st+" интересного, "+c.nt+" заметок, "+c.dn+" проработано"+
+  (c.kj?", "+c.kj+" знаков":""); }
 function stampNow(){ return new Date().toISOString().slice(0,16).replace("T"," "); }
 async function remoteFile(g,name){
   var f=g.files&&g.files[name]; if(!f) return null;
@@ -2387,7 +2843,7 @@ function openPlan(){
     v=Math.max(1,Math.min(200,Math.round(v)||20));
     if(v===lessonSize()) return;
     S.size=v; S.sizeAt=Date.now(); S.lesson={};      // план пересобирается заново
-    assignLessons(); await saveAll(); S.sync.dirty=true; openPlan();
+    assignLessons(); S.sync.dirty=true; await saveAll(); openPlan();
   };
   $("#modalBody").onclick=function(e){
     var b=e.target.closest("[data-size]"); if(b){ setSize(+b.dataset.size); return; }
@@ -2474,6 +2930,7 @@ function openMenu(){
         (S.sync.gist?"обмен идёт сам; последняя отправка: "+esc(S.sync.at||"ещё не было"):"настроить обмен")+'</small></button>'+
       '<button class="item" data-m="add">Добавить файл<small>новый экспорт или ответ нейросети</small></button>'+
       '<button class="item" data-m="task">Задание для нейросети<small>по текущей выборке</small></button>'+
+      '<button class="item" data-m="ktask">Задание по кандзи<small>значения, радикалы, мнемоники</small></button>'+
       '<button class="item" data-m="cid">Список cid: для Anki<small>чтобы найти эти карточки в браузере Anki</small></button>'+
       '<button class="item" data-m="bulk">Отметить всё видимое проработанным</button><button class="item" data-m="forget">Забыть, что уже выгружено<small>тогда эти слова снова попадут в задание</small></button>'+
       '<hr>'+
@@ -2490,6 +2947,7 @@ function openMenu(){
     if(m==="plan") openPlan();
     if(m==="add") $("#fileinMenu").click();
     if(m==="task") openTask();
+    if(m==="ktask") openKanjiTask();
     if(m==="cid") copyCid();
     if(m==="bulk") bulkDone();
     if(m==="forget"){ Object.keys(S.sent).forEach(function(id){ touch(id,"sent"); });
@@ -2498,7 +2956,7 @@ function openMenu(){
     if(m==="texts"){ exportTexts(); closeModal(); }
     if(m==="backup"){ download("anki_backup.json",JSON.stringify({v:7,edits:S.edits,status:S.status,notes:S.notes,
       etym:S.etym,story:S.story,sent:S.sent,lastTask:S.lastTask,mtime:S.mtime,mtimes:S.mtimes,imports:S.imports,
-      srs:S.srs,lesson:S.lesson,diff:S.diff,log:S.log,size:lessonSize()},null,1),"application/json"); closeModal(); }
+      srs:S.srs,lesson:S.lesson,diff:S.diff,log:S.log,kanji:S.kanji,size:lessonSize()},null,1),"application/json"); closeModal(); }
     if(m==="restore") $("#impBackup").click();
     if(m==="sync") openSync();
     if(m==="help") openHelp();
@@ -2518,6 +2976,15 @@ function openHelp(){
     '<p style="margin-top:8px"><b>Чтобы слово перестало путаться.</b> В карточке под «похожими словами» '+
       'есть строка «в чём разница» — она хранится на паре и видна с обеих сторон. '+
       'Это главное лекарство: путаница между близкими словами держит их в провалах прочнее, чем сложность.</p>'+
+    '<p style="margin-top:8px"><b>Знаки.</b> Кнопка <b>Знаки</b> открывает все кандзи колоды разом — '+
+      'от самых мешающих к остальным, с поиском и фильтром «не разобраны». В строке списка знак '+
+      'открывается <b>долгим нажатием</b> (обычный тап по-прежнему раскрывает карточку), '+
+      'а в раскрытой карточке и в уроке — обычным нажатием на полоску под словом. '+
+      'Подчёркнутые знаки — уже разобранные.</p>'+
+    '<p style="margin-top:8px">В окне знака — значение, чтения, радикалы и их значения, этимология, '+
+      'история, мнемоника и порядок черт, а ниже <b>все слова вашей колоды с этим знаком</b> '+
+      'с числом провалов: видно, где именно знак мешает. Тексты пишете сами или собираете '+
+      'нейросетью — кнопка «Задание» на экране знаков или ⋯ → Задание по кандзи.</p>'+
     '<p style="margin-top:8px"><b>Иногда наоборот.</b> Раз в три повтора урок показывает разбор и просит '+
       'вспомнить само слово — в Anki вы его только узнаёте и никогда не производите. '+
       'Отключается там же, в уроках. Рядом — кнопка 🔊: слово читает голос вашей системы, '+
@@ -2540,9 +3007,18 @@ function confirmWipe(){
     var ks=await slist("ankidash:");
     for(var i=0;i<ks.length;i++) await sdel(ks[i]);
     S.cards=[]; S.edits={}; S.status={}; S.notes={}; S.etym={}; S.story={}; S.sent={}; S.lastTask=null;
-    S.mtime={}; S.mtimes={}; S.srs={}; S.lesson={}; S.diff={}; S.log={}; S.imports=[]; S.deck=null;
+    S.mtime={}; S.mtimes={}; S.srs={}; S.lesson={}; S.diff={}; S.log={}; S.kanji={}; S.imports=[]; S.deck=null;
     S.open=null; S.filters={}; setHas(false);
-    closeModal(); renderAll(); $("#progress").textContent=""; toast("Очищено");
+    /* Если обмен настроен, всё это тут же приехало бы обратно: вместе
+       с текстами стёрлись и отметки времени, по которым видно, что их удалили.
+       Поэтому обмен приостанавливаем, а токен и адрес оставляем. */
+    var былОбмен=!!(S.sync.token||S.sync.gist);
+    S.sync.off=true; S.sync.dirty=false;
+    await sset(K.sync,JSON.stringify(S.sync));
+    closeModal(); renderAll(); $("#progress").textContent="";
+    toast(былОбмен
+      ? "Очищено. Обмен приостановлен, чтобы стёртое не приехало обратно — включить снова можно в настройках синхронизации"
+      : "Очищено", былОбмен?8000:2400);
   };
   $("#wipeNo").onclick=closeModal;
 }
@@ -2565,7 +3041,7 @@ function applyTheme(){
 }
 function openModal(t,n,b){ $("#modalTitle").textContent=t; $("#modalNote").textContent=n||"";
   $("#modalBody").innerHTML=b||""; $("#modal").hidden=false; }
-function closeModal(){ $("#modal").hidden=true; $("#modalBody").onclick=null; }
+function closeModal(){ $("#modal").hidden=true; $("#modalBody").onclick=null; $("#modalBody").oninput=null; }
 $("#modalX").onclick=closeModal;
 $("#modal").addEventListener("click",function(e){ if(e.target.id==="modal") closeModal(); });
 
@@ -2574,6 +3050,7 @@ document.addEventListener("keydown",function(e){
   if(e.key==="Escape"){
     if(typing){ e.target.blur(); return; }
     if(!$("#modal").hidden){ closeModal(); return; }
+    if(!$("#ksheet").hidden){ exitKanjiSheet(); return; }
     if(S.drill){ exitDrill(); return; }
     if(S.open){ S.open=null; renderList(); }
     return;
