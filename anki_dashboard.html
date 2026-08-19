@@ -19,11 +19,14 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>
 :root{
-  /* Светлая: тёплая бумага без синевы. Текст почти чёрный — контраст около 17:1,
-     это вдвое выше нормы AAA, и на солнце экран остаётся читаемым. */
-  --paper:#F4F2EC; --panel:#FFFFFF; --ink:#101315; --ink2:#3F4447; --ink3:#64696C;
+  /* Светлая: тёплая бумага без синевы, текст — мягкий тёмно-серый, а не чёрный.
+     Предельный контраст режет глаз: Баттерик и Брингхёрст советуют отойти от
+     чистой черноты. Здесь около 10:1 — всё ещё заметно выше нормы AAA (7:1).
+     Ступени --ink / --ink2 / --ink3 держат норму каждая на своём кегле. */
+  --paper:#F4F2EC; --panel:#FFFFFF; --ink:#363D40; --ink2:#575E61; --ink3:#64696C;
   --rule:#D2CFC6; --hard:#96200F; --mid:#8A5606; --soft:#6B5C39; --easy:#25573C; --accent:#4A2C93;
-  /* --ink3 подобран так, чтобы мелкие подписи держали норму AA на этой бумаге */
+  /* подложка главной кнопки: она выделяется цветом, а не темнотой */
+  --tint:#EAE4F6; --tintline:#CFC0EC;
   /* единый шаг отступов: всё в вёрстке кратно ему, поэтому ничто не липнет к краю */
   --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px;
   --tap:44px;                       /* наименьшая цель для пальца */
@@ -36,11 +39,13 @@
   :root:not([data-theme="light"]){
     --paper:#101312; --panel:#1B201E; --ink:#F2F1EB; --ink2:#C3C8C4; --ink3:#949B97;
     --rule:#333937; --hard:#F08375; --mid:#EDB863; --soft:#D2BC85; --easy:#84CFA0; --accent:#B49CF5;
+    --tint:#251F35; --tintline:#3E3459;
   }
 }
 :root[data-theme="dark"]{
   --paper:#101312; --panel:#1B201E; --ink:#F2F1EB; --ink2:#C3C8C4; --ink3:#949B97;
   --rule:#333937; --hard:#F08375; --mid:#EDB863; --soft:#D2BC85; --easy:#84CFA0; --accent:#B49CF5;
+  --tint:#251F35; --tintline:#3E3459;
 }
 *{box-sizing:border-box;scrollbar-width:thin;scrollbar-color:var(--rule) transparent}
 ::-webkit-scrollbar{width:10px;height:10px}
@@ -56,7 +61,7 @@ body{overscroll-behavior-y:none;-webkit-tap-highlight-color:transparent;
 img,svg,video,table{max-width:100%}
 body{font-family:var(--ui);line-height:1.45;-webkit-text-size-adjust:100%}
 #root{max-width:940px;margin:0 auto;padding:var(--s5) var(--s5) calc(80px + env(safe-area-inset-bottom))}
-h1{margin:0;font-size:19px;font-weight:650;letter-spacing:-.01em}
+h1{margin:0;font-size:19px;font-weight:550;letter-spacing:-.01em}
 p{margin:0}
 .note{font-size:12px;color:var(--ink3);font-family:var(--ui);line-height:1.55}
 .fold .body .note,.fold .body .acts,.fold .body label,.fold .body input,
@@ -84,9 +89,13 @@ p{margin:0}
 .btn{display:inline-block;font:inherit;font-size:13px;padding:10px 14px;border-radius:3px;border:1px solid var(--rule);
      background:var(--panel);color:var(--ink);cursor:pointer;text-align:center}
 .btn:hover{border-color:var(--ink2)}
-.btn.primary{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+/* Наименьшее достаточное различие (Тафти): раньше главная кнопка кричала
+   тремя способами разом — почти чёрная заливка, вывернутый текст и жир.
+   Остаётся один: бледная подложка акцентного цвета. */
+.btn.primary{background:var(--tint);color:var(--accent);border-color:var(--tintline);font-weight:500}
+.btn.primary:hover{border-color:var(--accent)}
 .btn.ghost{font-size:12.5px;padding:10px 12px}
-.btn.big{font-size:14.5px;padding:11px 22px;font-weight:600}
+.btn.big{font-size:14.5px;padding:11px 22px;font-weight:550}
 .btn.danger:hover{border-color:var(--hard);color:var(--hard)}
 .btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,.chip:focus-visible,.row:focus-visible,
 summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -107,7 +116,7 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
    Подпись идёт в ту же строку, поэтому кнопка остаётся в один рост с соседями. */
 .cta{display:flex;align-items:center;gap:7px;width:fit-content;max-width:100%;
      margin:var(--s3) 0;padding:0 var(--s4);min-height:44px;
-     font-size:14.5px;font-weight:650;line-height:1.25;border-radius:3px}
+     font-size:14.5px;font-weight:500;line-height:1.25;border-radius:3px}
 .cta small{font-size:12.5px;font-weight:400;opacity:.8;letter-spacing:.02em;
            overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .line3{display:flex;gap:var(--s2);align-items:center;flex-wrap:wrap}
