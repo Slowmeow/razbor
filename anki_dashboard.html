@@ -658,6 +658,27 @@ async function slist(p){ try{
   if(MODE==="local"){ var o=[]; for(var i=0;i<LS.length;i++){ var k=LS.key(i); if(k.indexOf(p)===0) o.push(k); } return o; } }catch(e){}
   return Object.keys(mem).filter(function(k){ return k.indexOf(p)===0; }); }
 
+/* Браузер вправе выселить данные приложения, когда на устройстве кончается
+   место, — молча и без спроса. Это самый большой риск для «работает годами»,
+   больше любой ошибки в коде. Просим защиту, но только когда данные уже есть:
+   до этого просить не за что, а Firefox ещё и покажет запрос. */
+var НАДЁЖНО=null;
+async function askPersist(){
+  try{
+    if(!navigator.storage||!navigator.storage.persist) return null;
+    if(navigator.storage.persisted && await navigator.storage.persisted()){ НАДЁЖНО=true; return true; }
+    НАДЁЖНО=await navigator.storage.persist();
+    return НАДЁЖНО;
+  }catch(e){ return null; }
+}
+async function местоВХранилище(){
+  try{
+    if(!navigator.storage||!navigator.storage.estimate) return null;
+    var e=await navigator.storage.estimate();
+    if(!e||!e.quota) return null;
+    return { занято:e.usage||0, всего:e.quota };
+  }catch(x){ return null; }
+}
 var HAS="ankidash:has";
 function setHas(yes){ try{ if(LS) LS.setItem(HAS, yes?"1":"0"); }catch(e){} }
 function hadCards(){ try{ return LS ? LS.getItem(HAS) : null; }catch(e){ return null; } }
@@ -975,11 +996,31 @@ var ANKI={
   ease0:2.5,         // стартовая лёгкость
   easeMin:1.3,
   hard:1.2,          // множитель для «с трудом»
-  mod:1.0,           // интервальный модификатор
+  mod:1.0,           // интервальный модификатор по умолчанию
   lapse:0.0,         // новый интервал после провала — от прежнего
   lapseMin:1,        // но не меньше дня
   max:36500
 };
+/* Разброс интервала, как в Anki. Без него два десятка карточек, выпущенных
+   в один день, возвращаются одним комом — и так навсегда, повтор за повтором.
+
+   Отличие от Anki одно и намеренное: у нас разброс не случайный, а выведенный
+   из самой карточки, её номера повтора и нажатой кнопки. Значит, подпись
+   на кнопке обещает ровно тот срок, который и наступит, — а в Anki кнопка
+   показывает одно, а получается другое. */
+function семя(str){
+  var h=2166136261;
+  for(var i=0;i<str.length;i++){ h^=str.charCodeAt(i); h=Math.imul(h,16777619); }
+  return (h>>>0)/4294967296;
+}
+function разброс(iv,ключ){
+  if(iv<2) return iv;
+  var r=семя(ключ);
+  if(iv<3) return 2+(r<0.5?0:1);
+  var доля = iv<7 ? 0.25 : iv<30 ? 0.15 : 0.05;
+  var д=Math.max(1,Math.round(iv*доля));
+  return Math.max(2, iv + (Math.floor(r*(2*д+1)) - д));
+}
 var DAY=86400000;
 function today(){ var d=new Date(); d.setHours(0,0,0,0); return d.getTime(); }
 function dueIn(id){ var st=S.srs[id]; if(!st) return -1; return Math.round((st.d-today())/DAY); }
@@ -994,8 +1035,15 @@ function grade(id,g){
   var было=S.srs[id]||null;
   var был=!!было, держит=был&&(было.i||0)>=7&&isDue(id)&&g>0;
   var c=S._byId[id];
-  if(c) logAdd({ w:gainOf(c,g,был), n:g>0?1:0, h:держит?1:0 });
-  var n=nextState(было,g);
+  /* Считаем удержание честно, как «настоящее удержание» в Anki: в счёт идут
+     только ответы на карточках, которые уже были на повторе, — попытки на
+     шагах обучения к удержанию отношения не имеют. Отдельно зрелые: интервал
+     от трёх недель, это и есть проверка, что память держит долго. */
+  var наПовторе=!!(было&&было.q==="review"), зрелая=наПовторе&&(было.i||0)>=21;
+  if(c) logAdd({ w:gainOf(c,g,был), n:g>0?1:0, h:держит?1:0,
+    p:наПовторе?1:0, pk:(наПовторе&&g>0)?1:0,
+    pm:зрелая?1:0, pmk:(зрелая&&g>0)?1:0 });
+  var n=nextState(было,g,id);
   S.srs[id]=n.st;
   touch(id,"srs");
   /* карточка выпустилась и уехала на дни — считаем её проработанной,
@@ -1028,8 +1076,9 @@ function devId(){
 function logKey(){ return dayKey()+"|"+devId(); }
 function logAdd(add){
   var k=logKey(), e=S.log[k]||{ w:0, n:0, l:0, h:0 };
-  e.w=(e.w||0)+(add.w||0); e.n=(e.n||0)+(add.n||0);
-  e.l=(e.l||0)+(add.l||0); e.h=(e.h||0)+(add.h||0);
+  /* складываем все числовые поля, а не только четыре известных:
+     так к дневнику можно добавлять счётчики, не переписывая его */
+  Object.keys(add).forEach(function(f){ if(typeof add[f]==="number") e[f]=(e[f]||0)+add[f]; });
   S.log[k]=e; touch(k,"log");
   /* Итог за всю жизнь считается отдельно от дневника и обрезкой не задевается.
 
@@ -1041,8 +1090,7 @@ function logAdd(add){
      ничего не двоится: своё значение каждое устройство пишет само,
      а чужое просто принимает более свежим. */
   var d=devId(), L=S.life[d]||{ w:0, n:0, l:0, h:0 };
-  L.w=(L.w||0)+(add.w||0); L.n=(L.n||0)+(add.n||0);
-  L.l=(L.l||0)+(add.l||0); L.h=(L.h||0)+(add.h||0);
+  Object.keys(add).forEach(function(f){ if(typeof add[f]==="number") L[f]=(L[f]||0)+add[f]; });
   S.life[d]=L; touch(d,"life");
   /* дневник по дням всё же не должен расти бесконечно: 1200 записей —
      это около трёх лет на одном устройстве и полутора на двух */
@@ -1277,7 +1325,7 @@ async function handleFiles(files){
 /* ---------- сохранение ---------- */
 var CHUNK=300;
 function meta(){ return { v:7, at:Date.now(), chunks:Math.ceil(S.cards.length/CHUNK), deck:S.deck,
-  imports:S.imports, theme:S.theme, sort:S.sort, lastTask:S.lastTask, cardsAt:S.cardsAt||0,
+  imports:S.imports, theme:S.theme, sort:S.sort, lastTask:S.lastTask, cardsAt:S.cardsAt||0, ivMod:S.ivMod||1,
   size:lessonSize(), sizeAt:S.sizeAt||0, back:S.back!==false, voice:!!S.voice,
   sound:S.sound!==false, devId:S.devId||"", week:S.week||"" }; }
 async function saveMeta(){ setHas(S.cards.length>0); return await sset(K.meta,JSON.stringify(meta())); }
@@ -1395,7 +1443,8 @@ async function loadAll(){
   var m=await sget(K.meta); if(!m) return false;
   m=parseObj(m,null); if(!m) return false;
   S.deck=m.deck||null; S.imports=m.imports||[];
-  S.theme=(m.theme==="light"||m.theme==="dark")?m.theme:(systemDark()?"dark":"light"); if(m.sort) S.sort=m.sort; S.lastTask=m.lastTask||null;
+  S.theme=(m.theme==="light"||m.theme==="dark")?m.theme:(systemDark()?"dark":"light");
+  S.ivMod=(m.ivMod>=0.5&&m.ivMod<=1.5)?m.ivMod:1; if(m.sort) S.sort=m.sort; S.lastTask=m.lastTask||null;
   if(m.size>0) S.size=m.size; S.sizeAt=m.sizeAt||0;
   S.back=m.back!==false; S.voice=!!m.voice; S.sound=m.sound!==false;
   S.devId=m.devId||""; S.week=m.week||"";
@@ -2058,7 +2107,7 @@ function afterText(days){
    поэтому годится и для подписей на кнопках, и для самого ответа.
    Возвращает { st, mins }: mins больше нуля — карточка ещё на шагах обучения
    и вернётся в этом же уроке, ноль — уехала на дни. */
-function nextState(st,g){
+function nextState(st,g,ключ){
   var s=st?JSON.parse(JSON.stringify(st)):{ q:"learn", s:0, i:0, e:ANKI.ease0, r:0, l:0, d:today() };
   if(!s.q) s.q="learn";                       // на всякий случай: состояние из старой версии
   s.r=(s.r||0)+1;
@@ -2088,14 +2137,34 @@ function nextState(st,g){
   var поздно=Math.max(0,Math.round((today()-(s.d||today()))/DAY));   // насколько просрочено
   if(g===1){
     s.e=Math.max(ANKI.easeMin,s.e-0.15);
-    s.i=Math.max((s.i||0)+1,Math.round((s.i||1)*ANKI.hard*ANKI.mod));
+    s.i=Math.max((s.i||0)+1,Math.round((s.i||1)*ANKI.hard*ivMod()));
   }else{
-    s.i=Math.max((s.i||0)+1,Math.round(((s.i||1)+поздно/2)*s.e*ANKI.mod));
+    s.i=Math.max((s.i||0)+1,Math.round(((s.i||1)+поздно/2)*s.e*ivMod()));
   }
-  s.i=Math.min(ANKI.max,s.i); s.d=today()+s.i*DAY;
+  s.i=Math.min(ANKI.max,s.i);
+  if(ключ) s.i=Math.min(ANKI.max,разброс(s.i,ключ+"|"+s.r+"|"+g));
+  s.d=today()+s.i*DAY;
   return { st:s, mins:0 };
 }
 /* Минуты шага — в честную подпись: карточка правда вернётся в этом уроке. */
+/* Интервальный модификатор — единственная ручка, которой в SM-2 можно
+   двигать удержание. Меньше единицы — интервалы короче и вспоминается чаще;
+   больше — реже и дольше. Anki зовёт это «interval modifier». */
+function ivMod(){ var m=+S.ivMod; return (m>=0.5&&m<=1.5)?m:1.0; }
+/* Настоящее удержание: доля вспомненных среди ответов на карточках,
+   которые уже были на повторе. */
+function удержание(дней){
+  var t=Date.now(), сумма={p:0,pk:0,pm:0,pmk:0};
+  Object.keys(S.log).forEach(function(k){
+    var д=k.split("|")[0];
+    if(дней){ var when=Date.parse(д+"T00:00:00"); if(!(t-when<=дней*DAY)) return; }
+    var e=S.log[k];
+    сумма.p+=e.p||0; сумма.pk+=e.pk||0; сумма.pm+=e.pm||0; сумма.pmk+=e.pmk||0;
+  });
+  return { всего:сумма.p, взято:сумма.pk, зрелых:сумма.pm, зрелыхВзято:сумма.pmk,
+    доля:сумма.p?сумма.pk/сумма.p:null, доляЗрелых:сумма.pm?сумма.pmk/сумма.pm:null };
+}
+function процент(x){ return x==null?"—":Math.round(x*100)+" %"; }
 function stepText(mins){
   return mins<=2 ? "ещё раз сейчас" : mins<8 ? "ещё раз скоро" : "ещё раз в конце урока";
 }
@@ -2104,7 +2173,7 @@ function stepGap(mins){ return Math.max(2,Math.min(12,Math.round(mins))); }
 function gradePreview(id){
   var st=S.srs[id]||null;
   return [0,1,2].map(function(g){
-    var n=nextState(st,g);
+    var n=nextState(st,g,id);
     return n.mins>0 ? stepText(n.mins) : afterText(n.st.i);
   });
 }
@@ -2493,17 +2562,37 @@ function openTask(){
 }
 
 function exportTexts(){
-  var lines=[["note_id","card_id","слово","разбор","интересное","моя_заметка","статус"].join(",")], n=0;
+  /* Всё, что написано руками, должно уметь выйти отсюда: иначе работа заперта
+     в одном браузере. Уходит двумя файлами, потому что форма разная —
+     карточки с различиями и отдельно разборы знаков. */
+  var дата=new Date().toISOString().slice(0,10);
+  var lines=[["note_id","card_id","слово","разбор","интересное","моя_заметка","различия","статус"].join(",")], n=0;
   S.cards.forEach(function(c){
     var et=etymOf(c), st=storyOf(c), nt=(S.notes[c.id]||"").trim(), ed=isEdited(c);
-    if(!et&&!st&&!nt&&!ed) return;
+    var раз=[];
+    similarOf(c).forEach(function(o){
+      var d=diffOf(c.id,o.c.id);
+      if(d) раз.push(mainText(o.c)+" — "+d);
+    });
+    if(!et&&!st&&!nt&&!ed&&!раз.length) return;
     n++;
     lines.push([csvCell(c.note),csvCell(c.id),csvCell(mainText(c)),csvCell(et),csvCell(st),csvCell(nt),
-      S.status[c.id]==="done"?"проработана":""].join(","));
+      csvCell(раз.join("\n")), S.status[c.id]==="done"?"проработана":""].join(","));
   });
-  if(!n){ toast("Пока нечего выгружать"); return; }
-  download("anki_texts_"+new Date().toISOString().slice(0,10)+".csv",lines.join("\n"));
-  toast("Выгружено карточек: "+n);
+  var знаки=Object.keys(S.kanji).filter(function(ch){ return hasKanji(ch); });
+  if(!n&&!знаки.length){ toast("Пока нечего выгружать"); return; }
+  if(n) download("anki_texts_"+дата+".csv",lines.join("\n"));
+  if(знаки.length){
+    var кол=["kanji","meaning","readings","radicals","etymology","story","mnemonic","writing","слов_в_колоде"];
+    var kl=[кол.join(",")];
+    знаки.sort(function(a,b){ return kanjiLoad(b)-kanjiLoad(a); }).forEach(function(ch){
+      var d=kanjiOf(ch);
+      kl.push([csvCell(ch),csvCell(d.m||""),csvCell(d.y||""),csvCell(d.r||""),csvCell(d.e||""),
+               csvCell(d.s||""),csvCell(d.n||""),csvCell(d.w||""),kanjiWords(ch).length].join(","));
+    });
+    download("anki_kanji_"+дата+".csv",kl.join("\n"));
+  }
+  toast("Выгружено: карточек "+n+(знаки.length?", знаков "+знаки.length:""));
 }
 function copyCid(){
   var v=S._vis||[]; if(!v.length){ toast("Список пуст"); return; }
@@ -3076,6 +3165,12 @@ function openPlan(){
   var ov=$("#optVoice"); if(ov) ov.onchange=function(){ S.voice=ov.checked; saveMeta(); };
   var os=$("#optSound"); if(os) os.onchange=function(){ S.sound=os.checked; saveMeta(); if(S.sound) ding("ok"); };
   var cs=$("#tallyCsv"); if(cs) cs.onclick=exportLog;
+  var im=$("#ivMod");
+  if(im) im.onchange=function(){
+    S.ivMod=+im.value; saveMeta();
+    toast("Длина интервалов: "+(S.ivMod===1?"как в Anki"
+      :(S.ivMod<1?"короче":"длиннее")+" на "+Math.round(Math.abs(S.ivMod-1)*100)+" %"));
+  };
   var d=$("#goDue"); if(d) d.onclick=function(){ startDue(); };
   var g=$("#goNext"); if(g) g.onclick=function(){
     var first=null;
@@ -3115,9 +3210,112 @@ function tallyHTML(){
       '<p class="note">В группе A осталось '+скл(tierACount(),"карточка","карточки","карточек")+
         (S.imports.length>1&&S.imports[1].a!=null?' (на прошлом экспорте было '+S.imports[1].a+')':"")+'</p>'+
       (пр?'<p class="note">При нынешнем темпе план закроется примерно '+esc(пр.когда)+'</p>':"")+
+      удержаниеHTML()+
       '<div class="acts" style="margin-top:10px"><button class="btn ghost" id="tallyCsv">Скачать таблицу CSV</button></div>'+
     '</div></details>'+
   '</div>';
+}
+/* Показываем измеренное удержание рядом с ручкой, которая на него влияет:
+   иначе ручку крутят вслепую. */
+function удержаниеHTML(){
+  var м=удержание(30), в=удержание(0);
+  if(!в.всего) return '<p class="note" style="margin-top:10px">Удержание появится, когда карточки начнут '+
+    'возвращаться на повтор: сейчас в счёт идут только они, а не шаги обучения.</p>';
+  var m=ivMod();
+  var опции=[["0.8","короче на 20 %"],["0.9","короче на 10 %"],["1","как в Anki"],
+             ["1.1","длиннее на 10 %"],["1.2","длиннее на 20 %"]]
+    .map(function(o){ return '<option value="'+o[0]+'"'+(Math.abs(+o[0]-m)<0.001?" selected":"")+'>'+
+      o[0].replace(".",",")+' — '+o[1]+'</option>'; }).join("");
+  return '<p class="note" style="margin-top:12px"><b>Удержание.</b> За 30 дней: '+
+      процент(м.доля)+' ('+м.взято+' из '+м.всего+')'+
+      (м.зрелых?', зрелые '+процент(м.доляЗрелых)+' ('+м.зрелыхВзято+' из '+м.зрелых+')':"")+
+      '. За всё время: '+процент(в.доля)+' ('+в.взято+' из '+в.всего+').</p>'+
+    '<p class="note">Считаются только ответы на карточках, уже ушедших на повтор, — как «настоящее удержание» в Anki. '+
+      'Зрелые — с интервалом от трёх недель.</p>'+
+    '<div class="acts" style="margin-top:8px"><label class="btn ghost">длина интервалов '+
+      '<select id="ivMod" style="margin-left:6px">'+опции+'</select></label></div>'+
+    '<p class="note">Целитесь в 90 %. Держится выше — интервалы можно растянуть; ниже — укоротить. '+
+      'Это единственная ручка, которой в расписании Anki двигают удержание.</p>';
+}
+/* Уборка следов.
+
+   Карточку удалили из Anki — а её разбор, заметка, расписание и отметка
+   времени остаются здесь навсегда и ездят в каждой синхронизации. За годы
+   этого накапливается больше, чем живых данных.
+
+   Автоматически такое чистить нельзя: неполный экспорт — одна колода вместо
+   всех, оборванная выгрузка — сделал бы вид, что половины карточек нет,
+   и снёс бы живую работу. Поэтому только вручную и только после отчёта,
+   где видно, что именно уйдёт. Разборы знаков не трогаем никогда: они
+   привязаны к знаку, а не к карточке, и переживают любую колоду. */
+function следы(){
+  var есть=S._byId||{}, из={}, всего=0, сТекстом=0;
+  ["status","notes","etym","story","sent","srs","lesson"].forEach(function(key){
+    var o=S[key]||{}, список=[];
+    Object.keys(o).forEach(function(id){ if(!есть[id]) список.push(id); });
+    if(список.length){ из[key]=список; всего+=список.length;
+      if(key==="notes"||key==="etym"||key==="story") сТекстом+=список.length; }
+  });
+  var пары=[];
+  Object.keys(S.diff||{}).forEach(function(k){
+    var ab=k.split("|");
+    if(!есть[ab[0]]||!есть[ab[1]]) пары.push(k);
+  });
+  if(пары.length){ из.diff=пары; всего+=пары.length; сТекстом+=пары.length; }
+  var метки=[];
+  Object.keys(S.mtime||{}).forEach(function(id){ if(!есть[id]&&id.indexOf("|")<0) метки.push(id); });
+  return { из:из, метки:метки, всего:всего, сТекстом:сТекстом };
+}
+/* Резервная копия нужна из двух мест: из меню и перед уборкой следов,
+   поэтому вынесена отдельно. Она скачивается файлом и от хранилища
+   браузера не зависит — это последняя линия обороны для ваших текстов. */
+function backup(){
+  download("anki_backup.json",JSON.stringify({v:7,edits:S.edits,status:S.status,notes:S.notes,
+    etym:S.etym,story:S.story,sent:S.sent,lastTask:S.lastTask,mtime:S.mtime,mtimes:S.mtimes,imports:S.imports,
+    srs:S.srs,lesson:S.lesson,diff:S.diff,log:S.log,kanji:S.kanji,life:S.life,size:lessonSize()},null,1),
+    "application/json");
+}
+function openTidy(){
+  if(!S.cards.length){ toast("Сначала загрузите card_summary.csv"); return; }
+  var f=следы();
+  var имена={ status:"отметки «проработано»", notes:"заметки", etym:"разборы", story:"интересное",
+              sent:"отметки о выгрузке", srs:"расписание повторов", lesson:"привязки к урокам",
+              diff:"различия между парами" };
+  var строки=Object.keys(f.из).map(function(k){
+    return '<tr><td>'+esc(имена[k]||k)+'</td><td>'+f.из[k].length+'</td></tr>'; }).join("");
+  openModal("Прибраться","следы от карточек, которых нет в нынешней колоде",
+    (!f.всего
+      ? '<p class="bigline">Прибираться нечего.</p><p class="note">Все данные привязаны к карточкам, которые есть в колоде.</p>'
+      : '<p class="bigline">Нашёл '+скл(f.всего,"след","следа","следов")+'</p>'+
+        '<table class="tallyTab"><tr><th>что</th><th>сколько</th></tr>'+строки+'</table>'+
+        (f.сТекстом
+          ? '<p class="note" style="margin-top:10px"><b>Осторожно: среди них '+f.сТекстом+
+            ' с вашим текстом</b> — разборы, заметки или различия. Если колода выгружена не целиком, '+
+            'эти карточки на самом деле живы, и текст пропадёт зря. Сделайте резервную копию перед уборкой.</p>'
+          : '<p class="note" style="margin-top:10px">Вашего текста среди них нет — только служебные отметки.</p>')+
+        '<p class="note">Разборы знаков не трогаю: они привязаны к знаку, а не к карточке.</p>'+
+        '<div class="acts" style="margin-top:12px">'+
+          '<button class="btn" id="tidyBackup">Сначала резервную копию</button>'+
+          '<button class="btn danger" id="tidyGo">Убрать '+f.всего+'</button>'+
+          '<button class="btn ghost" id="tidyNo">Не надо</button></div>'));
+  var b=$("#tidyBackup"); if(b) b.onclick=backup;
+  var no=$("#tidyNo"); if(no) no.onclick=closeModal;
+  var go=$("#tidyGo");
+  if(go) go.onclick=async function(){
+    var f2=следы(), убрано=0;
+    Object.keys(f2.из).forEach(function(key){
+      f2.из[key].forEach(function(id){
+        delete S[key][id];
+        if(S.mtimes[key]) delete S.mtimes[key][id];
+        убрано++;
+      });
+    });
+    f2.метки.forEach(function(id){ delete S.mtime[id]; });
+    S.sync.dirty=true;
+    await saveTexts();
+    closeModal(); renderAll();
+    toast("Убрано "+скл(убрано,"след","следа","следов")+". Если это ошибка — восстановите из копии.",6000);
+  };
 }
 function exportLog(){
   var by=logByDay(), дни=Object.keys(by).sort();
@@ -3127,10 +3325,19 @@ function exportLog(){
   download("anki_итоги_"+dayKey()+".csv",lines.join("\n"));
   toast("Выгружено "+скл(дни.length,"день","дня","дней"));
 }
+/* тасование Фишера — Йетса */
+function перемешать(a){
+  for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i]; a[i]=a[j]; a[j]=t; }
+  return a;
+}
 function startLesson(num){
   var list=S.cards.filter(function(c){ return S.lesson[c.id]===num; });
   if(!list.length){ toast("Урок пуст"); return; }
-  list.sort(function(a,b){ return weightOf(b)-weightOf(a); });
+  /* Состав урока не меняется — он закреплён и держится между выгрузками.
+     Меняется только порядок, и каждый раз новый: при постоянном порядке
+     запоминается сама последовательность, и слово всплывает не потому,
+     что вы его знаете, а потому что оно идёт за предыдущим. */
+  перемешать(list);
   closeModal();
   S.drill={ list:list, i:0, mode:"learn", lesson:num, shown:false, done:0 };
   $("#drill").hidden=false; document.body.style.overflow="hidden"; renderDrill();
@@ -3156,9 +3363,10 @@ function openMenu(){
       '<button class="item" data-m="cid">Список cid: для Anki<small>чтобы найти эти карточки в браузере Anki</small></button>'+
       '<button class="item" data-m="bulk">Отметить всё видимое проработанным</button><button class="item" data-m="forget">Забыть, что уже выгружено<small>тогда эти слова снова попадут в задание</small></button>'+
       '<hr>'+
-      '<button class="item" data-m="texts">Скачать разборы и заметки<small>CSV</small></button>'+
+      '<button class="item" data-m="texts">Скачать разборы и заметки<small>CSV: карточки, различия и знаки</small></button>'+
       '<button class="item" data-m="backup">Резервная копия<small>JSON со всеми вашими текстами</small></button>'+
       '<button class="item" data-m="restore">Восстановить из копии</button>'+
+      '<button class="item" data-m="tidy">Прибраться<small>следы от карточек, которых больше нет в колоде</small></button>'+
       '<hr>'+
       '<button class="item" data-m="help">Как пользоваться</button>'+
       '<button class="item danger" data-m="wipe">Очистить всё</button>'+
@@ -3171,14 +3379,13 @@ function openMenu(){
     if(m==="task") openTask();
     if(m==="ktask") openKanjiTask();
     if(m==="cid") copyCid();
+    if(m==="tidy") openTidy();
     if(m==="bulk") bulkDone();
     if(m==="forget"){ Object.keys(S.sent).forEach(function(id){ touch(id,"sent"); });
       S.sent={}; S.lastTask=null; saveSoon(); closeModal(); renderList();
       toast("Отметки о выгрузке сброшены"); }
     if(m==="texts"){ exportTexts(); closeModal(); }
-    if(m==="backup"){ download("anki_backup.json",JSON.stringify({v:7,edits:S.edits,status:S.status,notes:S.notes,
-      etym:S.etym,story:S.story,sent:S.sent,lastTask:S.lastTask,mtime:S.mtime,mtimes:S.mtimes,imports:S.imports,
-      srs:S.srs,lesson:S.lesson,diff:S.diff,log:S.log,kanji:S.kanji,life:S.life,size:lessonSize()},null,1),"application/json"); closeModal(); }
+    if(m==="backup"){ backup(); closeModal(); }
     if(m==="restore") $("#impBackup").click();
     if(m==="sync") openSync();
     if(m==="help") openHelp();
@@ -3359,6 +3566,7 @@ window.addEventListener("appinstalled",function(){ $("#install").hidden=true; to
   var сброшено=await resetSchedule();    // разовый переход на расписание Anki
   var убрано=dropOldSrs();               // и состояния старой формы, если их принесла синхронизация
   if(новых||сброшено||убрано) saveSoon();
+  if(S.cards.length) askPersist();       // данные появились — есть что защищать
   if(сброшено) toast("Расписание переведено на правила Anki: "+
     скл(сброшено,"карточка снова новая","карточки снова новые","карточек снова новые"),6000);
   setHas(S.cards.length>0);
