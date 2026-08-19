@@ -291,6 +291,7 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .drill{position:fixed;inset:0;background:var(--paper);z-index:60;display:flex;flex-direction:column}
 .drillTop{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--rule);
          padding-top:calc(10px + env(safe-area-inset-top))}
+.drillTop .undo{padding:6px 11px;font-size:17px;line-height:1;flex:none}
 .drillTop .track{flex:1;height:4px;background:var(--rule);border-radius:3px;overflow:hidden}
 .drillTop .fill{height:100%;background:var(--accent)}
 .drillPos{font-family:var(--mono);font-size:12px;color:var(--ink3);white-space:nowrap}
@@ -500,6 +501,7 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 <div class="drill" id="drill" hidden>
   <div class="drillTop">
     <button class="btn ghost" id="drillExit">К списку</button>
+    <button class="btn ghost undo" id="drillUndo" title="Отменить последний ответ (Ctrl+Z)" hidden>↶</button>
     <div class="track"><div class="fill" id="drillFill"></div></div>
     <span class="drillPos" id="drillPos"></span>
   </div>
@@ -596,7 +598,7 @@ var K={ meta:"ankidash:meta", cards:"ankidash:cards:", edits:"ankidash:edits",
         status:"ankidash:status", notes:"ankidash:notes", etym:"ankidash:etym", story:"ankidash:story",
         sent:"ankidash:sent", mtime:"ankidash:mtime", mtimes:"ankidash:mtimes", sync:"ankidash:sync",
         srs:"ankidash:srs", lesson:"ankidash:lesson", diff:"ankidash:diff", log:"ankidash:log",
-        kanji:"ankidash:kanji" };
+        kanji:"ankidash:kanji", srsv:"ankidash:srsv" };
 
 /* ---------- состояние ---------- */
 var TIER={ A:12, B:8, C:4 };
@@ -889,8 +891,28 @@ function lessonsList(){
   return Object.keys(by).map(function(k){ return by[k]; })
     .sort(function(a,b){ return a.n-b.n; });
 }
-/* Простое расписание в духе старого Anki: ease по умолчанию 2.5,
-   провал сбрасывает интервал и слегка снижает ease. Без FSRS. */
+/* Расписание Anki со штатными настройками, без FSRS.
+
+   Состояние карточки: q — фаза (learn — учится, review — на повторе,
+   relearn — переучивается после провала), s — номер шага обучения,
+   i — интервал в днях, e — лёгкость, r — сколько раз отвечали,
+   l — сколько раз провалено, d — когда показать снова.
+
+   Шаги обучения в Anki меряются минутами. Здесь урок — конечный список,
+   поэтому минуты переводятся в «через столько-то карточек»: одна минута —
+   почти сразу, десять — ближе к концу урока. */
+var ANKI={
+  steps:[1,10],      // шаги обучения, минуты
+  relearn:[10],      // шаг переучивания после провала
+  grad:1,            // выпуск: первый интервал, дней
+  ease0:2.5,         // стартовая лёгкость
+  easeMin:1.3,
+  hard:1.2,          // множитель для «с трудом»
+  mod:1.0,           // интервальный модификатор
+  lapse:0.0,         // новый интервал после провала — от прежнего
+  lapseMin:1,        // но не меньше дня
+  max:36500
+};
 var DAY=86400000;
 function today(){ var d=new Date(); d.setHours(0,0,0,0); return d.getTime(); }
 function dueIn(id){ var st=S.srs[id]; if(!st) return -1; return Math.round((st.d-today())/DAY); }
@@ -902,27 +924,23 @@ function gainOf(c,g,был){
   return Math.round(weightOf(c)*(g===1?0.6:1)*(был?0.6:1));
 }
 function grade(id,g){
-  var st=S.srs[id]||{ i:0, e:2.5, r:0, l:0, d:today() };
-  var был=!!S.srs[id], держит=был&&(st.i||0)>=7&&isDue(id)&&g>0;
+  var было=S.srs[id]||null;
+  var был=!!было, держит=был&&(было.i||0)>=7&&isDue(id)&&g>0;
   var c=S._byId[id];
   if(c) logAdd({ w:gainOf(c,g,был), n:g>0?1:0, h:держит?1:0 });
-  st.i=nextInterval(st,g);
-  if(g===0){ st.l=(st.l||0)+1; st.e=Math.max(1.3,(st.e||2.5)-0.2); }
-  else if(g===1){ st.e=Math.max(1.3,(st.e||2.5)-0.15); }
-  st.r=(st.r||0)+1;
-  st.d=today()+st.i*DAY;
-  S.srs[id]=st;
+  var n=nextState(было,g);
+  S.srs[id]=n.st;
   touch(id,"srs");
-  /* карточка ушла на завтра и дальше — считаем её проработанной,
+  /* карточка выпустилась и уехала на дни — считаем её проработанной,
      чтобы прежние счётчики и фильтры остались осмысленными */
-  if(st.i>=1&&S.status[id]!=="done"){ S.status[id]="done"; touch(id,"status"); }
-  return st;
+  if(n.mins===0&&n.st.i>=1&&S.status[id]!=="done"){ S.status[id]="done"; touch(id,"status"); }
+  return n;
 }
 /* Отметил проработанной руками — карточка не должна пропадать навсегда:
    ставим её в то же расписание, как будто ответили «помню». */
 function scheduleIfNew(id){
   if(S.srs[id]) return;
-  S.srs[id]={ i:2, e:2.5, r:1, l:0, d:today()+2*DAY };
+  S.srs[id]={ q:"review", s:0, i:ANKI.grad, e:ANKI.ease0, r:1, l:0, d:today()+ANKI.grad*DAY };
   touch(id,"srs");
 }
 /* ---------- дневник ----------
@@ -988,19 +1006,30 @@ function heaviestDone(){
     if(!best||weightOf(c)>weightOf(best)) best=c; }
   return best;
 }
-/* Выданный аванс. План не должен начинаться с нуля: всё, что вы уже отмечали
-   проработанным до появления уроков, — это сделанная работа, и она засчитывается.
-   Возвраты разносим на три недели, иначе назавтра прилетело бы всё разом. */
-function endowProgress(){
-  var k=0, made=0;
-  for(var i=0;i<S.cards.length;i++){
-    var id=S.cards[i].id;
-    if(S.status[id]!=="done"||S.srs[id]) continue;
-    var iv=7+(k%21); k++;
-    S.srs[id]={ i:iv, e:2.5, r:1, l:0, d:today()+iv*DAY };
-    touch(id,"srs"); made++;
-  }
-  return made;
+/* Переход на расписание Anki. Прежние интервалы считались по другому правилу
+   и разъехались до сотен дней, поэтому расписание сбрасывается один раз:
+   карточки снова становятся новыми и проходят шаги обучения заново.
+   Разборы, заметки, знаки, планы уроков и дневник не трогаются.
+
+   Аванса при этом не выдаём: он бы тут же вернул сброшенные карточки на
+   недельные интервалы и отменил сам сброс. */
+async function resetSchedule(){
+  if(await sget(K.srsv)==="2") return 0;
+  var было=Object.keys(S.srs).length;
+  S.srs={}; S.mtimes.srs={};
+  await sset(K.srsv,"2");
+  if(было){ await sset(K.srs,"{}"); await sset(K.mtimes,JSON.stringify(S.mtimes)); }
+  return было;
+}
+/* Состояния из версии до перехода узнаются по форме — у них нет фазы q.
+   Такие выбрасываем всегда, в том числе когда их принесла синхронизация
+   со второго устройства, которое ещё не обновилось. */
+function dropOldSrs(){
+  var n=0, mt=S.mtimes.srs||{};
+  Object.keys(S.srs).forEach(function(id){
+    if(!S.srs[id]||!S.srs[id].q){ delete S.srs[id]; delete mt[id]; n++; }
+  });
+  return n;
 }
 function dueCards(){
   var out=[];
@@ -1936,17 +1965,96 @@ function afterText(days){
 /* Что будет с расписанием при каждой из кнопок — видно заранее,
    как в старом Anki: человек выбирает осознанно, а не наугад.
    Считаем начисто, ничего не трогая: это надпись, а не действие. */
-function nextInterval(st,g){
-  var i=st?st.i:0, e=st?(st.e||2.5):2.5;
-  if(g===0) return 0;                               // не помню — сегодня же
-  /* «с трудом» должно всё-таки расти: округление 1*1,2 давало вечную единицу */
-  if(g===1) return i?Math.max(i+1,Math.round(i*1.2)):1;
-  return Math.min(365, !i?2:Math.max(2,Math.round(i*e)));  // помню — через два дня, дальше вширь
+/* Куда карточка поедет после ответа. Ничего не меняет — только считает,
+   поэтому годится и для подписей на кнопках, и для самого ответа.
+   Возвращает { st, mins }: mins больше нуля — карточка ещё на шагах обучения
+   и вернётся в этом же уроке, ноль — уехала на дни. */
+function nextState(st,g){
+  var s=st?JSON.parse(JSON.stringify(st)):{ q:"learn", s:0, i:0, e:ANKI.ease0, r:0, l:0, d:today() };
+  if(!s.q) s.q="learn";                       // на всякий случай: состояние из старой версии
+  s.r=(s.r||0)+1;
+  s.e=s.e||ANKI.ease0;
+  if(s.q==="learn"||s.q==="relearn"){
+    var st2=s.q==="learn"?ANKI.steps:ANKI.relearn;
+    if(g===0){ s.s=0; s.d=today(); return { st:s, mins:st2[0] }; }
+    if(g===1){
+      /* «с трудом» на шагах повторяет шаг; на первом — среднее первого и второго */
+      var m=(s.s===0&&st2.length>1)?(st2[0]+st2[1])/2:st2[Math.min(s.s,st2.length-1)];
+      s.d=today(); return { st:s, mins:m };
+    }
+    s.s=(s.s||0)+1;
+    if(s.s<st2.length){ s.d=today(); return { st:s, mins:st2[s.s] }; }
+    /* шаги кончились — выпуск */
+    s.i=s.q==="relearn" ? Math.max(ANKI.lapseMin,Math.round((s.i||0)*ANKI.lapse)) : ANKI.grad;
+    s.q="review"; s.s=0; s.d=today()+s.i*DAY;
+    return { st:s, mins:0 };
+  }
+  /* карточка на повторе */
+  if(g===0){
+    s.l=(s.l||0)+1;
+    s.e=Math.max(ANKI.easeMin,s.e-0.2);
+    s.q="relearn"; s.s=0; s.d=today();
+    return { st:s, mins:ANKI.relearn[0] };
+  }
+  var поздно=Math.max(0,Math.round((today()-(s.d||today()))/DAY));   // насколько просрочено
+  if(g===1){
+    s.e=Math.max(ANKI.easeMin,s.e-0.15);
+    s.i=Math.max((s.i||0)+1,Math.round((s.i||1)*ANKI.hard*ANKI.mod));
+  }else{
+    s.i=Math.max((s.i||0)+1,Math.round(((s.i||1)+поздно/2)*s.e*ANKI.mod));
+  }
+  s.i=Math.min(ANKI.max,s.i); s.d=today()+s.i*DAY;
+  return { st:s, mins:0 };
 }
+/* Минуты шага — в честную подпись: карточка правда вернётся в этом уроке. */
+function stepText(mins){
+  return mins<=2 ? "ещё раз сейчас" : mins<8 ? "ещё раз скоро" : "ещё раз в конце урока";
+}
+/* Через сколько карточек вернуть её в урок: минута — почти сразу, десять — подальше. */
+function stepGap(mins){ return Math.max(2,Math.min(12,Math.round(mins))); }
 function gradePreview(id){
   var st=S.srs[id]||null;
-  return [0,1,2].map(function(g){ return afterText(nextInterval(st,g)); });
+  return [0,1,2].map(function(g){
+    var n=nextState(st,g);
+    return n.mins>0 ? stepText(n.mins) : afterText(n.st.i);
+  });
 }
+/* ---------- откат ответа ----------
+
+   Как в Anki: ответ можно отмотать, и отматывается всё, что он сдвинул, —
+   расписание карточки, запись в дневнике, отметка «проработано», место
+   в уроке и итоги занятия. Иначе откат врал бы: карточка вернулась,
+   а снятый вес остался бы записан. */
+function srsSnapshot(d,c){
+  var k=logKey(), copy=function(o){ return o?JSON.parse(JSON.stringify(o)):null; };
+  return {
+    id:c.id, i:d.i, shown:d.shown, done:d.done,
+    list:d.list.slice(), итог:copy(d.итог),
+    srs:copy(S.srs[c.id]), status:S.status[c.id]===undefined?null:S.status[c.id],
+    mtSrs:(S.mtimes.srs||{})[c.id], mtStatus:(S.mtimes.status||{})[c.id],
+    logKey:k, log:copy(S.log[k]), mtLog:(S.mtimes.log||{})[k]
+  };
+}
+function putMt(key,id,v){
+  if(!S.mtimes[key]) S.mtimes[key]={};
+  if(v===undefined) delete S.mtimes[key][id]; else S.mtimes[key][id]=v;
+}
+function canUndo(){ return !!(S.drill&&S.drill.undo&&S.drill.undo.length); }
+function undoGrade(){
+  if(!canUndo()){ toast("Отматывать нечего"); return; }
+  var d=S.drill, u=d.undo.pop();
+  d.i=u.i; d.shown=u.shown; d.done=u.done; d.list=u.list; d.итог=u.итог;
+  if(u.srs) S.srs[u.id]=u.srs; else delete S.srs[u.id];
+  if(u.status===null) delete S.status[u.id]; else S.status[u.id]=u.status;
+  if(u.log) S.log[u.logKey]=u.log; else delete S.log[u.logKey];
+  putMt("srs",u.id,u.mtSrs); putMt("status",u.id,u.mtStatus); putMt("log",u.logKey,u.mtLog);
+  S.sync.dirty=true;
+  saveSoon(); renderDrill(); $("#drillBody").scrollTop=0;
+  var c=S._byId[u.id];
+  toast("Отменено: "+(c?mainText(c):"ответ"),1600);
+}
+$("#drillUndo").onclick=undoGrade;
+
 function renderDrill(){
   var d=S.drill; if(!d) return;
   if(d.i<0) d.i=0; if(d.i>=d.list.length) d.i=d.list.length-1;
@@ -1959,6 +2067,7 @@ function renderDrill(){
     ? "осталось "+осталось
     : (learn?"урок "+(d.lesson||"повтор")+" · ":"")+(d.i+1)+" / "+d.list.length;
   $("#drillFill").style.width=((d.i+1)/d.list.length*100)+"%";
+  $("#drillUndo").hidden=!(learn&&canUndo());
   $("#drillRead").hidden=learn; $("#drillLearn").hidden=!learn;
   if(learn){
     $("#drillShow").textContent=back?"Показать слово":"Показать разбор";
@@ -2085,17 +2194,22 @@ $("#drillGrades").addEventListener("click",function(e){
   var d=S.drill, c=d.list[d.i], g=+b.dataset.g;
   var былВ=!!S.srs[c.id], держал=былВ&&(S.srs[c.id].i||0)>=7&&isDue(c.id)&&g>0;
   if(!d.итог) d.итог={ w:0, a:0, держит:0, взято:0 };
+  /* снимок ДО любых изменений — с него откатывается всё разом */
+  if(!d.undo) d.undo=[];
+  d.undo.push(srsSnapshot(d,c));
+  if(d.undo.length>200) d.undo.shift();
   if(g>0){ d.итог.w+=gainOf(c,g,былВ); d.итог.взято++;
     if(tierOf(c)==="A") d.итог.a++; if(держал) d.итог.держит++; }
-  var st=grade(c.id,g);
+  var n=grade(c.id,g);
   ding(g===0?"miss":"ok");
   saveSoon();
-  /* «не помню» — карточка вернётся в конце этого же урока */
-  if(g===0&&d.list.length<200) d.list.push(c); else d.done++;
+  /* карточка ещё на шагах обучения — вернётся в этом же уроке, как в Anki */
+  if(n.mins>0&&d.list.length<200) d.list.splice(Math.min(d.list.length,d.i+1+stepGap(n.mins)),0,c);
+  else d.done++;
   d.shown=false;
   if(d.i+1>=d.list.length) return finishLesson();
   d.i++; renderDrill(); $("#drillBody").scrollTop=0;
-  toast(mainText(c)+" — "+afterText(st.i),1400);
+  toast(mainText(c)+" — "+(n.mins>0?stepText(n.mins):afterText(n.st.i)),1400);
 });
 function finishLesson(){
   var d=S.drill, num=d.lesson, it=d.итог||{ w:0, a:0, держит:0, взято:0 };
@@ -2118,11 +2232,19 @@ function finishLesson(){
       ? "Все карточки урока уехали на повтор — вернутся сами, когда придёт срок."
       : "Карточки вернутся по расписанию: не помню — сегодня же, с трудом — скоро, помню — позже.")+'</p>'+
     '<div class="acts"><button class="btn primary" id="planAgain">К урокам</button>'+
+      (d.undo&&d.undo.length?'<button class="btn" id="planUndo">↶ Отменить ответ</button>':"")+
       '<button class="btn ghost" id="planClose">Закрыть</button></div>');
   var sh=document.querySelector("#modal .sheet");
   if(sh){ sh.classList.add("calm"); setTimeout(function(){ sh.classList.remove("calm"); },400); }
   $("#planAgain").onclick=openPlan;
   $("#planClose").onclick=closeModal;
+  /* последний ответ закрыл урок — вернуться к нему можно и отсюда:
+     снимок сделан до записи «урок пройден», поэтому она откатится вместе с ним */
+  if($("#planUndo")) $("#planUndo").onclick=function(){
+    closeModal(); S.drill=d;
+    $("#drill").hidden=false; document.body.style.overflow="hidden";
+    undoGrade();
+  };
 }
 $("#drillPrev").onclick=function(){ drillMove(-1); };
 $("#drillNext").onclick=function(){ drillMove(1); };
@@ -2439,6 +2561,8 @@ function mergeTexts(r){
   });
   if(r.lastTask&&(!S.lastTask||r.lastTask.at>S.lastTask.at)) S.lastTask=r.lastTask;
   if(r.size>0&&(r.at||0)>(S.sizeAt||0)){ S.size=r.size; S.sizeAt=r.at||0; }
+  /* второе устройство могло ещё не обновиться и прислать расписание в старой форме */
+  removed+=dropOldSrs();
   return { added:added, updated:updated, removed:removed };
 }
 /* колода из хранилища: новых карточек добавляем всегда, цифры перебиваем только
@@ -2990,6 +3114,10 @@ function openHelp(){
       'история, мнемоника и порядок черт, а ниже <b>все слова вашей колоды с этим знаком</b> '+
       'с числом провалов: видно, где именно знак мешает. Тексты пишете сами или собираете '+
       'нейросетью — кнопка «Задание» на экране знаков или ⋯ → Задание по кандзи.</p>'+
+    '<p style="margin-top:8px"><b>Ошиблись кнопкой.</b> <b>Ctrl+Z</b> или кнопка ↶ в шапке урока '+
+      'отматывают последний ответ: возвращается и расписание карточки, и запись в дневнике, '+
+      'и место в уроке. Жать можно сколько угодно раз подряд, хоть до начала урока. '+
+      'Если последний ответ закрыл урок, откат есть и в окне «урок пройден».</p>'+
     '<p style="margin-top:8px"><b>Иногда наоборот.</b> Раз в три повтора урок показывает разбор и просит '+
       'вспомнить само слово — в Anki вы его только узнаёте и никогда не производите. '+
       'Отключается там же, в уроках. Рядом — кнопка 🔊: слово читает голос вашей системы, '+
@@ -3062,6 +3190,10 @@ document.addEventListener("keydown",function(e){
   }
   if(typing) return;
   if(S.drill){
+    if((e.ctrlKey||e.metaKey)&&(e.key==="z"||e.key==="Z"||e.key==="я"||e.key==="Я")){
+      if(S.drill.mode==="learn") undoGrade();
+      e.preventDefault(); return;
+    }
     if(e.key==="ArrowRight"||e.key==="n"){ drillMove(1); e.preventDefault(); }
     if(e.key==="ArrowLeft"||e.key==="p"){ drillMove(-1); e.preventDefault(); }
     if(e.key==="d"){ $("#drillDone").click(); e.preventDefault(); }
@@ -3108,8 +3240,11 @@ window.addEventListener("appinstalled",function(){ $("#install").hidden=true; to
   var sy=await sget(K.sync); if(sy) try{ S.sync=JSON.parse(sy); }catch(x){}
   var ok=await loadAll();
   var новых=assignLessons();             // колода из старой версии: плана ещё нет
-  var зачтено=endowProgress();           // уже проработанное засчитываем в план
-  if(новых||зачтено) saveSoon();
+  var сброшено=await resetSchedule();    // разовый переход на расписание Anki
+  var убрано=dropOldSrs();               // и состояния старой формы, если их принесла синхронизация
+  if(новых||сброшено||убрано) saveSoon();
+  if(сброшено) toast("Расписание переведено на правила Anki: "+
+    скл(сброшено,"карточка снова новая","карточки снова новые","карточек снова новые"),6000);
   setHas(S.cards.length>0);
   shortSort(); applyTheme(); renderAll();
   if(MODE==="memory") $("#progress").textContent="Хранилище недоступно: тексты будут жить только до перезагрузки.";
