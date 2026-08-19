@@ -102,11 +102,14 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .chip.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
 .chip .n{font-family:var(--mono);font-size:10.5px;opacity:.7;margin-left:5px}
 .chip.reset{border-style:dashed;color:var(--ink3)}
-/* Главное действие — своей полосой во всю ширину. Остальные кнопки под ним
-   и мельче: видно, что здесь главное, а что рядом. */
-.cta{display:block;width:100%;margin:var(--s4) 0 var(--s3);padding:var(--s4) var(--s5);
-     font-size:16px;font-weight:650;line-height:1.25;border-radius:4px;min-height:60px}
-.cta small{display:block;font-size:12.5px;font-weight:400;opacity:.78;margin-top:3px;letter-spacing:.02em}
+/* Главное действие стоит своей строкой над остальными кнопками, но по ширине
+   текста, а не во весь экран: выделяется положением и цветом, а не размером.
+   Подпись идёт в ту же строку, поэтому кнопка остаётся в один рост с соседями. */
+.cta{display:flex;align-items:center;gap:7px;width:fit-content;max-width:100%;
+     margin:var(--s3) 0;padding:0 var(--s4);min-height:44px;
+     font-size:14.5px;font-weight:650;line-height:1.25;border-radius:3px}
+.cta small{font-size:12.5px;font-weight:400;opacity:.8;letter-spacing:.02em;
+           overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .line3{display:flex;gap:var(--s2);align-items:center;flex-wrap:wrap}
 .count{font-family:var(--mono);font-size:12px;color:var(--ink3);margin-left:auto}
 .spacer{flex:1}
@@ -2936,7 +2939,7 @@ function renderPlanBtn(){
   var b=$("#lessonBtn"); if(!b) return;
   var line=planLine();
   b.hidden=!S.cards.length;
-  b.innerHTML='Заниматься'+(line?'<small>'+esc(line)+'</small>':"");
+  b.innerHTML='Заниматься'+(line?'<small>· '+esc(line)+'</small>':"");
   b.classList.add("cta"); b.classList.remove("big");
 }
 function openPlan(){

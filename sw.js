@@ -1,6 +1,6 @@
 /* Разбор колоды — офлайн-кэш.
    Меняйте VERSION при обновлении файлов, тогда старый кэш будет вычищен. */
-const VERSION = "razbor-v18";
+const VERSION = "razbor-v19";
 const ASSETS = [
   "./",
   "./index.html",
