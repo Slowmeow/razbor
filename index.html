@@ -19,8 +19,14 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>
 :root{
-  --paper:#F1F0EC; --panel:#FFFFFF; --ink:#15181A; --ink2:#474C4F; --ink3:#767C7E;
-  --rule:#D8D6CF; --hard:#A3271C; --mid:#9B6512; --soft:#7A6A45; --easy:#2F6146; --accent:#54339B;
+  /* Светлая: тёплая бумага без синевы. Текст почти чёрный — контраст около 17:1,
+     это вдвое выше нормы AAA, и на солнце экран остаётся читаемым. */
+  --paper:#F4F2EC; --panel:#FFFFFF; --ink:#101315; --ink2:#3F4447; --ink3:#64696C;
+  --rule:#D2CFC6; --hard:#96200F; --mid:#8A5606; --soft:#6B5C39; --easy:#25573C; --accent:#4A2C93;
+  /* --ink3 подобран так, чтобы мелкие подписи держали норму AA на этой бумаге */
+  /* единый шаг отступов: всё в вёрстке кратно ему, поэтому ничто не липнет к краю */
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px;
+  --tap:44px;                       /* наименьшая цель для пальца */
   --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
   --jp:"Hiragino Kaku Gothic ProN","Yu Gothic","Noto Sans JP","Meiryo",system-ui,sans-serif;
   --ui:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
@@ -49,14 +55,15 @@ body{overscroll-behavior-y:none;-webkit-tap-highlight-color:transparent;
      padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
 img,svg,video,table{max-width:100%}
 body{font-family:var(--ui);line-height:1.45;-webkit-text-size-adjust:100%}
-#root{max-width:940px;margin:0 auto;padding:20px 18px calc(80px + env(safe-area-inset-bottom))}
+#root{max-width:940px;margin:0 auto;padding:var(--s5) var(--s5) calc(80px + env(safe-area-inset-bottom))}
 h1{margin:0;font-size:19px;font-weight:650;letter-spacing:-.01em}
 p{margin:0}
 .note{font-size:12px;color:var(--ink3);font-family:var(--ui);line-height:1.55}
 .fold .body .note,.fold .body .acts,.fold .body label,.fold .body input,
 .fold .body summary,.fold .body button{font-family:var(--ui)}
 
-.top{display:flex;justify-content:space-between;align-items:center;gap:14px;padding-bottom:12px;border-bottom:2px solid var(--ink)}
+.top{display:flex;justify-content:space-between;align-items:center;gap:var(--s3);
+     padding-bottom:var(--s3);border-bottom:2px solid var(--ink)}
 .brand{display:flex;gap:11px;align-items:center;min-width:0}
 .mark{font-family:var(--jp);font-size:22px;line-height:1;width:38px;height:38px;display:grid;place-items:center;
       border:1.5px solid var(--ink);border-radius:2px;flex:none}
@@ -64,7 +71,7 @@ p{margin:0}
      white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tools{display:flex;gap:6px;flex:none}
 .iconbtn{border:1px solid var(--rule);background:var(--panel);color:var(--ink2);border-radius:3px;
-         width:34px;height:34px;font-size:15px;cursor:pointer;line-height:1}
+         width:40px;height:40px;font-size:16px;cursor:pointer;line-height:1}
 .iconbtn:hover{border-color:var(--ink2)}
 
 .intake{margin-top:20px}
@@ -74,11 +81,11 @@ p{margin:0}
 .dropHint{font-size:12.5px;color:var(--ink2);margin-bottom:18px;line-height:1.6}
 .progress{font-family:var(--mono);font-size:12px;color:var(--ink2);margin-top:12px;min-height:16px}
 
-.btn{display:inline-block;font:inherit;font-size:13px;padding:8px 14px;border-radius:3px;border:1px solid var(--rule);
+.btn{display:inline-block;font:inherit;font-size:13px;padding:10px 14px;border-radius:3px;border:1px solid var(--rule);
      background:var(--panel);color:var(--ink);cursor:pointer;text-align:center}
 .btn:hover{border-color:var(--ink2)}
 .btn.primary{background:var(--ink);color:var(--paper);border-color:var(--ink)}
-.btn.ghost{font-size:12.5px;padding:7px 12px}
+.btn.ghost{font-size:12.5px;padding:10px 12px}
 .btn.big{font-size:14.5px;padding:11px 22px;font-weight:600}
 .btn.danger:hover{border-color:var(--hard);color:var(--hard)}
 .btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,.chip:focus-visible,.row:focus-visible,
@@ -95,12 +102,18 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .chip.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
 .chip .n{font-family:var(--mono);font-size:10.5px;opacity:.7;margin-left:5px}
 .chip.reset{border-style:dashed;color:var(--ink3)}
-.line3{display:flex;gap:8px;align-items:center}
-.count{font-family:var(--mono);font-size:12px;color:var(--ink3)}
+/* Главное действие — своей полосой во всю ширину. Остальные кнопки под ним
+   и мельче: видно, что здесь главное, а что рядом. */
+.cta{display:block;width:100%;margin:var(--s4) 0 var(--s3);padding:var(--s4) var(--s5);
+     font-size:16px;font-weight:650;line-height:1.25;border-radius:4px;min-height:60px}
+.cta small{display:block;font-size:12.5px;font-weight:400;opacity:.78;margin-top:3px;letter-spacing:.02em}
+.line3{display:flex;gap:var(--s2);align-items:center;flex-wrap:wrap}
+.count{font-family:var(--mono);font-size:12px;color:var(--ink3);margin-left:auto}
 .spacer{flex:1}
 
 #list{margin-top:6px;border-top:1px solid var(--rule)}
-.row{display:grid;grid-template-columns:3px 22px 1fr auto;gap:10px;align-items:center;width:100%;padding:11px 4px 11px 0;
+.row{display:grid;grid-template-columns:3px 22px 1fr auto;gap:var(--s3);align-items:center;width:100%;
+     padding:var(--s3) var(--s1);min-height:56px;
      border:0;border-bottom:1px solid var(--rule);background:none;cursor:pointer;text-align:left;font:inherit;color:inherit}
 .row:hover{background:var(--panel)}
 .row.cursor{background:var(--panel);box-shadow:inset 3px 0 0 var(--accent)}
@@ -140,6 +153,13 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .grades{display:flex;gap:8px;width:100%}
 .grades .btn{flex:1;line-height:1.25}
 .grades .btn small{display:block;font-family:var(--mono);font-size:10.5px;color:var(--ink3);margin-top:3px}
+/* подсказка про цифру нужна только там, где есть клавиатура */
+.kbd{display:none}
+@media (hover:hover) and (pointer:fine){
+  .grades .btn{position:relative}
+  .kbd{display:block;position:absolute;top:5px;left:7px;font-family:var(--mono);font-style:normal;
+       font-size:10px;line-height:1;padding:2px 4px;border:1px solid currentColor;border-radius:2px;opacity:.5}
+}
 .grades .g0{border-color:var(--hard);color:var(--hard)} .grades .g0 small{color:var(--hard);opacity:.8}
 .grades .g1{border-color:var(--mid);color:var(--mid)}   .grades .g1 small{color:var(--mid);opacity:.8}
 .grades .g2{border-color:var(--easy);color:var(--easy)} .grades .g2 small{color:var(--easy);opacity:.8}
@@ -190,7 +210,9 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .kgrid{flex:1;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
        padding:12px 14px calc(20px + env(safe-area-inset-bottom));
        display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;align-content:start}
-.ktile{font:inherit;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 5px 8px;
+/* знаков бывает больше тысячи: браузер пропускает отрисовку тех, что вне экрана */
+.ktile{content-visibility:auto;contain-intrinsic-size:auto 96px;
+       font:inherit;display:flex;flex-direction:column;align-items:center;gap:3px;padding:var(--s2) var(--s1);
        border:1px solid var(--rule);border-radius:3px;background:var(--panel);color:var(--ink);
        cursor:pointer;min-height:92px;text-align:center;overflow:hidden}
 .ktile:hover{border-color:var(--ink2)}
@@ -289,9 +311,9 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
                 border-radius:3px;background:var(--panel);color:var(--ink)}
 
 .drill{position:fixed;inset:0;background:var(--paper);z-index:60;display:flex;flex-direction:column}
-.drillTop{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--rule);
-         padding-top:calc(10px + env(safe-area-inset-top))}
-.drillTop .undo{padding:6px 11px;font-size:17px;line-height:1;flex:none}
+.drillTop{display:flex;align-items:center;gap:var(--s3);padding:var(--s3) var(--s4);border-bottom:1px solid var(--rule);
+         padding-top:calc(var(--s3) + env(safe-area-inset-top))}
+.drillTop .undo{padding:9px 12px;font-size:17px;line-height:1;flex:none}
 .drillTop .track{flex:1;height:4px;background:var(--rule);border-radius:3px;overflow:hidden}
 .drillTop .fill{height:100%;background:var(--accent)}
 .drillPos{font-family:var(--mono);font-size:12px;color:var(--ink3);white-space:nowrap}
@@ -302,7 +324,7 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .drillRead{font-family:var(--jp);font-size:17px;color:var(--ink3);margin-top:4px}
 .drillSent{font-family:var(--jp);font-size:17px;margin-top:16px;padding-left:12px;border-left:3px solid var(--rule)}
 .drillStats{display:flex;gap:14px;flex-wrap:wrap;font-family:var(--mono);font-size:11.5px;color:var(--ink3);margin-top:12px}
-.drillBottom{display:flex;gap:8px;padding:12px 14px;border-top:1px solid var(--rule);max-width:680px;margin:0 auto;width:100%;
+.drillBottom{display:flex;gap:var(--s2);padding:var(--s3) var(--s4);border-top:1px solid var(--rule);max-width:680px;margin:0 auto;width:100%;
              padding-bottom:calc(12px + env(safe-area-inset-bottom))}
 .drillBottom .btn{flex:1}
 
@@ -316,7 +338,7 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
    с первого раза (44px), любое поле ввода не мельче 16px — иначе iOS
    при фокусе зумит страницу и она больше не влезает. */
 @media (max-width:640px){
-  #root{padding:14px 12px calc(84px + env(safe-area-inset-bottom))}
+  #root{padding:var(--s4) var(--s4) calc(84px + env(safe-area-inset-bottom))}
   h1{font-size:17px}
   .sub{font-size:10.5px}
   .mark{width:34px;height:34px;font-size:19px}
@@ -329,7 +351,9 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
             box-shadow:0 6px 8px -8px rgba(0,0,0,.4)}
   #q{font-size:16px;padding:11px}
   #sort{font-size:16px;padding:11px 8px;max-width:36%}
-  .line2{overflow-x:auto;flex-wrap:nowrap;padding-bottom:4px;
+  /* полоса фильтров прокручивается вбок: справа оставляем поле, чтобы
+     последняя кнопка не упиралась в край экрана */
+  .line2{overflow-x:auto;flex-wrap:nowrap;padding-bottom:var(--s1);padding-right:var(--s4);
          scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
   .line2::-webkit-scrollbar{display:none}
   .chip{flex:none;min-height:40px;padding:0 14px;display:inline-flex;align-items:center}
@@ -452,8 +476,8 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
     <button class="chip" data-f="slow">знаю, но медленно</button>
     <button class="chip reset" id="clearF">сброс</button>
   </div>
+  <button class="btn primary cta" id="lessonBtn" hidden>Заниматься</button>
   <div class="line3">
-    <button class="btn primary big" id="lessonBtn" hidden>Заниматься</button>
     <button class="btn" id="startDrill">Читать по одной</button>
     <button class="btn" id="kanjiBtn">Знаки</button>
     <span class="spacer"></span>
@@ -514,9 +538,9 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   <div class="drillBottom" id="drillLearn" hidden>
     <button class="btn primary big" id="drillShow">Показать разбор</button>
     <div class="grades" id="drillGrades" hidden>
-      <button class="btn g0" data-g="0">Не помню<small id="gs0"></small></button>
-      <button class="btn g1" data-g="1">С трудом<small id="gs1"></small></button>
-      <button class="btn g2" data-g="2">Помню<small id="gs2"></small></button>
+      <button class="btn g0" data-g="0"><i class="kbd">1</i>Не помню<small id="gs0"></small></button>
+      <button class="btn g1" data-g="1"><i class="kbd">2</i>С трудом<small id="gs1"></small></button>
+      <button class="btn g2" data-g="2"><i class="kbd">3</i>Помню<small id="gs2"></small></button>
     </div>
   </div>
 </div>
@@ -1306,7 +1330,8 @@ if(chan) chan.onmessage=function(ev){
 async function loadAll(){
   var m=await sget(K.meta); if(!m) return false;
   try{ m=JSON.parse(m); }catch(e){ return false; }
-  S.deck=m.deck||null; S.imports=m.imports||[]; S.theme=m.theme||"auto"; if(m.sort) S.sort=m.sort; S.lastTask=m.lastTask||null;
+  S.deck=m.deck||null; S.imports=m.imports||[];
+  S.theme=(m.theme==="light"||m.theme==="dark")?m.theme:(systemDark()?"dark":"light"); if(m.sort) S.sort=m.sort; S.lastTask=m.lastTask||null;
   if(m.size>0) S.size=m.size; S.sizeAt=m.sizeAt||0;
   S.back=m.back!==false; S.voice=!!m.voice; S.sound=m.sound!==false;
   S.devId=m.devId||""; S.week=m.week||"";
@@ -1585,7 +1610,7 @@ function renderKanjiSheet(){
     return kanjiMatch(ch,q);
   });
   list.sort(function(a,b){ return (L.w[b]||0)-(L.w[a]||0); });
-  var cut=list.length>400, show=cut?list.slice(0,400):list;
+  var show=list;              // показываем все знаки колоды, без урезания
   var html=show.map(function(ch){
     var d=kanjiOf(ch), n=L.n[ch]||0;
     return '<button class="ktile'+(d.m?" filled":"")+'" data-kanji="'+esc(ch)+'">'+
@@ -1594,7 +1619,6 @@ function renderKanjiSheet(){
       '<span class="m">'+(d.m?esc(d.m):скл(n,"слово","слова","слов"))+'</span></button>';
   }).join("");
   if(!show.length) html='<p class="kempty">'+(q?"По этому запросу знаков нет.":"Здесь пусто.")+'</p>';
-  else if(cut) html+='<p class="kempty">показаны первые 400 из '+list.length+' — сузьте поиском</p>';
   var g=$("#kGrid"), sc=g.scrollTop;
   g.innerHTML=html; g.scrollTop=sc;
   $("#kStat").textContent="знаков "+all.length+" · разобрано "+done+
@@ -2913,6 +2937,7 @@ function renderPlanBtn(){
   var line=planLine();
   b.hidden=!S.cards.length;
   b.innerHTML='Заниматься'+(line?'<small>'+esc(line)+'</small>':"");
+  b.classList.add("cta"); b.classList.remove("big");
 }
 function openPlan(){
   assignLessons();
@@ -3114,6 +3139,9 @@ function openHelp(){
       'история, мнемоника и порядок черт, а ниже <b>все слова вашей колоды с этим знаком</b> '+
       'с числом провалов: видно, где именно знак мешает. Тексты пишете сами или собираете '+
       'нейросетью — кнопка «Задание» на экране знаков или ⋯ → Задание по кандзи.</p>'+
+    '<p style="margin-top:8px"><b>С клавиатуры.</b> В уроке: <b>пробел</b> показывает разбор, '+
+      '<b>1</b> — не помню, <b>2</b> — с трудом, <b>3</b> — помню. Цифры срабатывают только '+
+      'когда разбор уже открыт, чтобы не оценить вслепую.</p>'+
     '<p style="margin-top:8px"><b>Ошиблись кнопкой.</b> <b>Ctrl+Z</b> или кнопка ↶ в шапке урока '+
       'отматывают последний ответ: возвращается и расписание карточки, и запись в дневнике, '+
       'и место в уроке. Жать можно сколько угодно раз подряд, хоть до начала урока. '+
@@ -3157,8 +3185,10 @@ function confirmWipe(){
 }
 $("#menu").onclick=openMenu;
 $("#theme").onclick=function(){
-  S.theme=S.theme==="auto"?"light":(S.theme==="light"?"dark":"auto");
-  applyTheme(); saveMeta(); toast("Тема: "+({auto:"как в системе",light:"светлая",dark:"тёмная"})[S.theme]);
+  /* Тем ровно две. «Как в системе» больше нет: она путала — экран менялся сам,
+     без спроса. Первый запуск подхватывает системную, дальше решает человек. */
+  S.theme=S.theme==="dark"?"light":"dark";
+  applyTheme(); saveMeta(); toast("Тема: "+(S.theme==="dark"?"тёмная":"светлая"));
 };
 var narrow=window.matchMedia("(max-width:640px)");
 function shortSort(){
@@ -3168,9 +3198,15 @@ function shortSort(){
   });
 }
 if(narrow.addEventListener) narrow.addEventListener("change",shortSort);
+function systemDark(){
+  try{ return matchMedia("(prefers-color-scheme: dark)").matches; }catch(x){ return false; }
+}
 function applyTheme(){
-  if(S.theme==="auto") document.documentElement.removeAttribute("data-theme");
-  else document.documentElement.setAttribute("data-theme",S.theme);
+  if(S.theme!=="light"&&S.theme!=="dark") S.theme=systemDark()?"dark":"light";
+  document.documentElement.setAttribute("data-theme",S.theme);
+  var b=$("#theme");
+  if(b) b.title=S.theme==="dark"?"Тема: тёмная. Нажмите — станет светлой"
+                                :"Тема: светлая. Нажмите — станет тёмной";
 }
 function openModal(t,n,b){ $("#modalTitle").textContent=t; $("#modalNote").textContent=n||"";
   $("#modalBody").innerHTML=b||""; $("#modal").hidden=false; }
@@ -3193,6 +3229,18 @@ document.addEventListener("keydown",function(e){
     if((e.ctrlKey||e.metaKey)&&(e.key==="z"||e.key==="Z"||e.key==="я"||e.key==="Я")){
       if(S.drill.mode==="learn") undoGrade();
       e.preventDefault(); return;
+    }
+    /* как в Anki: пробел показывает разбор, цифры отвечают.
+       Цифры работают только когда разбор уже открыт — иначе можно
+       случайно оценить то, чего ещё не видел */
+    if(S.drill.mode==="learn"){
+      var gr=$("#drillGrades"), готовы=gr&&!gr.hidden;
+      if((e.key===" "||e.key==="Enter")&&!готовы){ $("#drillShow").click(); e.preventDefault(); return; }
+      if(готовы&&(e.key==="1"||e.key==="2"||e.key==="3")){
+        var g=gr.querySelector('[data-g="'+(+e.key-1)+'"]');
+        if(g) g.click();
+        e.preventDefault(); return;
+      }
     }
     if(e.key==="ArrowRight"||e.key==="n"){ drillMove(1); e.preventDefault(); }
     if(e.key==="ArrowLeft"||e.key==="p"){ drillMove(-1); e.preventDefault(); }
