@@ -608,6 +608,21 @@ async function migrateFromLS(){
   }
   if(moved) console.info("перенесено из localStorage:",moved);
 }
+/* Разбор записи из хранилища с запасным значением.
+
+   Испорченная запись — не выдумка: её оставляет прерванная запись при
+   отключении питания, чужая или обрезанная резервная копия, недокачанный
+   ответ синхронизации. Обёртка в try спасала только от исключения разбора,
+   но JSON.parse("null") исключения не бросает — он возвращает null, и уже
+   он ронял запуск на первом же обращении к полю. Здесь проверяется и то,
+   что получился именно объект. */
+function parseObj(text,fallback){
+  if(!text) return fallback;
+  var v;
+  try{ v=JSON.parse(text); }catch(e){ return fallback; }
+  if(!v||typeof v!=="object"||Array.isArray(v)) return fallback;
+  return v;
+}
 async function sget(k){ try{
   if(MODE==="app"){ var r=await window.storage.get(k); return r?r.value:null; }
   if(MODE==="idb"){ var o=await idbReq("readonly",function(st){ return st.get(k); }); return o?o.v:null; }
@@ -615,7 +630,23 @@ async function sget(k){ try{
 async function sset(k,v){ try{
   if(MODE==="app"){ await window.storage.set(k,v); return true; }
   if(MODE==="idb"){ await idbReq("readwrite",function(st){ return st.put({k:k,v:v}); }); return true; }
-  if(MODE==="local"){ LS.setItem(k,v); return true; } }catch(e){ return false; } mem[k]=v; return true; }
+  if(MODE==="local"){ LS.setItem(k,v); return true; } }catch(e){ storageTrouble(); return false; } mem[k]=v; return true; }
+/* Хранилище может отказать: кончилось место, браузер закрыл базу, приватный
+   режим. Раньше отказ возвращался наверх молчаливым false, и его проверял
+   только импорт колоды. Значит, можно было заниматься час, а всё сделанное
+   не сохранилось бы, и никто бы не сказал. Теперь говорит — но не чаще
+   раза в минуту, чтобы не превратиться в шум. */
+var бедаБыла=0;
+function storageTrouble(){
+  var now=Date.now();
+  if(now-бедаБыла<60000) return;
+  бедаБыла=now;
+  try{
+    toast("Не сохраняется: в хранилище нет места. Сделайте резервную копию (⋯ → Резервная копия) — она скачается файлом и не зависит от хранилища.",9000);
+    var p=document.getElementById("progress");
+    if(p) p.textContent="Хранилище не принимает записи — сделанное сейчас может пропасть после перезагрузки.";
+  }catch(e){}
+}
 async function sdel(k){ try{
   if(MODE==="app"){ await window.storage.delete(k); return; }
   if(MODE==="idb"){ await idbReq("readwrite",function(st){ return st.delete(k); }); return; }
@@ -634,13 +665,13 @@ var K={ meta:"ankidash:meta", cards:"ankidash:cards:", edits:"ankidash:edits",
         status:"ankidash:status", notes:"ankidash:notes", etym:"ankidash:etym", story:"ankidash:story",
         sent:"ankidash:sent", mtime:"ankidash:mtime", mtimes:"ankidash:mtimes", sync:"ankidash:sync",
         srs:"ankidash:srs", lesson:"ankidash:lesson", diff:"ankidash:diff", log:"ankidash:log",
-        kanji:"ankidash:kanji", srsv:"ankidash:srsv" };
+        kanji:"ankidash:kanji", srsv:"ankidash:srsv", life:"ankidash:life" };
 
 /* ---------- состояние ---------- */
 var TIER={ A:12, B:8, C:4 };
 var S={ cards:[], edits:{}, status:{}, notes:{}, etym:{}, story:{}, sent:{}, lastTask:null,
         mtime:{}, mtimes:{}, cardsAt:0, sync:{}, imports:[], deck:null,
-        srs:{}, lesson:{}, diff:{}, log:{}, kanji:{}, kview:{f:"all",q:"",L:null}, size:20, back:true, voice:false, sound:true, devId:"",
+        srs:{}, lesson:{}, diff:{}, log:{}, kanji:{}, life:{}, kview:{f:"all",q:"",L:null}, size:20, back:true, voice:false, sound:true, devId:"",
         filters:{}, sort:"again", q:"", page:0, PAGE:60, open:null, cursor:-1,
         theme:"auto", drill:null, _vis:[], _idx:{read:{},kanji:{}}, _byId:{} };
 var $=function(s){ return document.querySelector(s); };
@@ -1000,9 +1031,23 @@ function logAdd(add){
   e.w=(e.w||0)+(add.w||0); e.n=(e.n||0)+(add.n||0);
   e.l=(e.l||0)+(add.l||0); e.h=(e.h||0)+(add.h||0);
   S.log[k]=e; touch(k,"log");
-  /* дневник не должен расти бесконечно */
+  /* Итог за всю жизнь считается отдельно от дневника и обрезкой не задевается.
+
+     Раньше «всего снято веса» суммировалось по дневнику, а дневник урезан.
+     Значит, примерно через полгода занятий с двух устройств число начинало
+     уменьшаться — притом что смысл его в том, чтобы не врать.
+
+     Счётчик ведётся по устройствам и только растёт, поэтому при обмене
+     ничего не двоится: своё значение каждое устройство пишет само,
+     а чужое просто принимает более свежим. */
+  var d=devId(), L=S.life[d]||{ w:0, n:0, l:0, h:0 };
+  L.w=(L.w||0)+(add.w||0); L.n=(L.n||0)+(add.n||0);
+  L.l=(L.l||0)+(add.l||0); L.h=(L.h||0)+(add.h||0);
+  S.life[d]=L; touch(d,"life");
+  /* дневник по дням всё же не должен расти бесконечно: 1200 записей —
+     это около трёх лет на одном устройстве и полутора на двух */
   var keys=Object.keys(S.log);
-  if(keys.length>400){ keys.sort(); for(var i=0;i<keys.length-400;i++) delete S.log[keys[i]]; }
+  if(keys.length>1200){ keys.sort(); for(var i=0;i<keys.length-1200;i++) delete S.log[keys[i]]; }
 }
 /* суммируем по дню всё, что записали разные устройства */
 function logByDay(){
@@ -1031,7 +1076,11 @@ function streak(){
   return k;
 }
 function totalWeight(){
-  var w=0; Object.keys(S.log).forEach(function(k){ w+=(S.log[k].w||0); });
+  /* берём отдельный счётчик; на колодах из версий до него его ещё нет —
+     тогда считаем по дневнику, как раньше */
+  var w=0, есть=false;
+  Object.keys(S.life).forEach(function(d){ w+=(S.life[d].w||0); есть=true; });
+  if(!есть) Object.keys(S.log).forEach(function(k){ w+=(S.log[k].w||0); });
   return Math.round(w);
 }
 /* Рекорд не хранится: он выводится из данных, значит не может разойтись с ними */
@@ -1266,6 +1315,7 @@ async function saveAll(){
   await sset(K.diff,JSON.stringify(S.diff));
   await sset(K.log,JSON.stringify(S.log));
   await sset(K.kanji,JSON.stringify(S.kanji));
+  await sset(K.life,JSON.stringify(S.life));
   await sset(K.mtime,JSON.stringify(S.mtime));
   await sset(K.mtimes,JSON.stringify(S.mtimes));
   await sset(K.sync,JSON.stringify(S.sync));
@@ -1284,6 +1334,7 @@ async function saveTexts(){
   await sset(K.diff,JSON.stringify(S.diff));
   await sset(K.log,JSON.stringify(S.log));
   await sset(K.kanji,JSON.stringify(S.kanji));
+  await sset(K.life,JSON.stringify(S.life));
   await sset(K.mtime,JSON.stringify(S.mtime));
   await sset(K.mtimes,JSON.stringify(S.mtimes));
   await sset(K.sync,JSON.stringify(S.sync));
@@ -1305,7 +1356,7 @@ function saveSoon(){ clearTimeout(saveT); saveT=setTimeout(async function(){
   await sset(K.story,JSON.stringify(S.story)); await sset(K.sent,JSON.stringify(S.sent));
   await sset(K.srs,JSON.stringify(S.srs)); await sset(K.lesson,JSON.stringify(S.lesson));
   await sset(K.diff,JSON.stringify(S.diff)); await sset(K.log,JSON.stringify(S.log));
-  await sset(K.kanji,JSON.stringify(S.kanji));
+  await sset(K.kanji,JSON.stringify(S.kanji)); await sset(K.life,JSON.stringify(S.life));
   await sset(K.mtime,JSON.stringify(S.mtime)); await sset(K.mtimes,JSON.stringify(S.mtimes));
   await sset(K.sync,JSON.stringify(S.sync));
   await saveMeta();
@@ -1317,19 +1368,20 @@ var chan=null, chanId=Math.random().toString(36).slice(2);
 try{ chan=new BroadcastChannel("ankidash"); }catch(e){ chan=null; }
 function announce(){ if(chan) try{ chan.postMessage({ t:"texts", from:chanId }); }catch(e){} }
 async function reloadTexts(){
-  var e=await sget(K.edits); if(e) try{ S.edits=JSON.parse(e); }catch(x){}
-  var st=await sget(K.status); if(st) try{ S.status=JSON.parse(st); }catch(x){}
-  var nt=await sget(K.notes); if(nt) try{ S.notes=JSON.parse(nt); }catch(x){}
-  var et=await sget(K.etym); if(et) try{ S.etym=JSON.parse(et); }catch(x){}
-  var so=await sget(K.story); if(so) try{ S.story=JSON.parse(so); }catch(x){}
-  var sn=await sget(K.sent); if(sn) try{ S.sent=JSON.parse(sn); }catch(x){}
-  var sr=await sget(K.srs); if(sr) try{ S.srs=JSON.parse(sr)||{}; }catch(x){}
-  var ls=await sget(K.lesson); if(ls) try{ S.lesson=JSON.parse(ls)||{}; }catch(x){}
-  var df=await sget(K.diff); if(df) try{ S.diff=JSON.parse(df)||{}; }catch(x){}
-  var lg=await sget(K.log); if(lg) try{ S.log=JSON.parse(lg)||{}; }catch(x){}
-  var kn=await sget(K.kanji); if(kn) try{ S.kanji=JSON.parse(kn)||{}; }catch(x){}
-  var mt=await sget(K.mtime); if(mt) try{ S.mtime=JSON.parse(mt); }catch(x){}
-  var ms=await sget(K.mtimes); if(ms) try{ S.mtimes=JSON.parse(ms)||{}; }catch(x){}
+  S.edits=parseObj(await sget(K.edits),S.edits);
+  S.status=parseObj(await sget(K.status),S.status);
+  S.notes=parseObj(await sget(K.notes),S.notes);
+  S.etym=parseObj(await sget(K.etym),S.etym);
+  S.story=parseObj(await sget(K.story),S.story);
+  S.sent=parseObj(await sget(K.sent),S.sent);
+  S.srs=parseObj(await sget(K.srs),S.srs);
+  S.lesson=parseObj(await sget(K.lesson),S.lesson);
+  S.diff=parseObj(await sget(K.diff),S.diff);
+  S.log=parseObj(await sget(K.log),S.log);
+  S.kanji=parseObj(await sget(K.kanji),S.kanji);
+  S.life=parseObj(await sget(K.life),S.life);
+  S.mtime=parseObj(await sget(K.mtime),S.mtime);
+  S.mtimes=parseObj(await sget(K.mtimes),S.mtimes);
   var a=document.activeElement;
   /* человек печатает — экран не дёргаем, данные уже верные */
   if(a&&(a.tagName==="TEXTAREA"||a.tagName==="INPUT")) return;
@@ -1341,7 +1393,7 @@ if(chan) chan.onmessage=function(ev){
 };
 async function loadAll(){
   var m=await sget(K.meta); if(!m) return false;
-  try{ m=JSON.parse(m); }catch(e){ return false; }
+  m=parseObj(m,null); if(!m) return false;
   S.deck=m.deck||null; S.imports=m.imports||[];
   S.theme=(m.theme==="light"||m.theme==="dark")?m.theme:(systemDark()?"dark":"light"); if(m.sort) S.sort=m.sort; S.lastTask=m.lastTask||null;
   if(m.size>0) S.size=m.size; S.sizeAt=m.sizeAt||0;
@@ -1351,18 +1403,19 @@ async function loadAll(){
   var arr=[];
   for(var c=0;c<(m.chunks||0);c++){ var s=await sget(K.cards+c); if(s){ try{ arr=arr.concat(JSON.parse(s)); }catch(e){} } }
   S.cards=arr;
-  var e=await sget(K.edits); if(e) try{ S.edits=JSON.parse(e); }catch(x){}
-  var st=await sget(K.status); if(st) try{ S.status=JSON.parse(st); }catch(x){}
-  var nt=await sget(K.notes); if(nt) try{ S.notes=JSON.parse(nt); }catch(x){}
-  var et=await sget(K.etym); if(et) try{ S.etym=JSON.parse(et); }catch(x){}
-  var so=await sget(K.story); if(so) try{ S.story=JSON.parse(so); }catch(x){}
-  var sn=await sget(K.sent); if(sn) try{ S.sent=JSON.parse(sn); }catch(x){}
-  var sr=await sget(K.srs); if(sr) try{ S.srs=JSON.parse(sr)||{}; }catch(x){}
-  var ls=await sget(K.lesson); if(ls) try{ S.lesson=JSON.parse(ls)||{}; }catch(x){}
-  var df=await sget(K.diff); if(df) try{ S.diff=JSON.parse(df)||{}; }catch(x){}
-  var lg=await sget(K.log); if(lg) try{ S.log=JSON.parse(lg)||{}; }catch(x){}
-  var kn=await sget(K.kanji); if(kn) try{ S.kanji=JSON.parse(kn)||{}; }catch(x){}
-  var mt=await sget(K.mtime); if(mt) try{ S.mtime=JSON.parse(mt); }catch(x){}
+  S.edits=parseObj(await sget(K.edits),S.edits);
+  S.status=parseObj(await sget(K.status),S.status);
+  S.notes=parseObj(await sget(K.notes),S.notes);
+  S.etym=parseObj(await sget(K.etym),S.etym);
+  S.story=parseObj(await sget(K.story),S.story);
+  S.sent=parseObj(await sget(K.sent),S.sent);
+  S.srs=parseObj(await sget(K.srs),S.srs);
+  S.lesson=parseObj(await sget(K.lesson),S.lesson);
+  S.diff=parseObj(await sget(K.diff),S.diff);
+  S.log=parseObj(await sget(K.log),S.log);
+  S.kanji=parseObj(await sget(K.kanji),S.kanji);
+  S.life=parseObj(await sget(K.life),S.life);
+  S.mtime=parseObj(await sget(K.mtime),S.mtime);
   var mts=await sget(K.mtimes); if(mts) try{ S.mtimes=JSON.parse(mts)||{}; }catch(x){}
   buildIndex();
   return S.cards.length>0;
@@ -2068,7 +2121,8 @@ function srsSnapshot(d,c){
     list:d.list.slice(), итог:copy(d.итог),
     srs:copy(S.srs[c.id]), status:S.status[c.id]===undefined?null:S.status[c.id],
     mtSrs:(S.mtimes.srs||{})[c.id], mtStatus:(S.mtimes.status||{})[c.id],
-    logKey:k, log:copy(S.log[k]), mtLog:(S.mtimes.log||{})[k]
+    logKey:k, log:copy(S.log[k]), mtLog:(S.mtimes.log||{})[k],
+    dev:devId(), life:copy(S.life[devId()]), mtLife:(S.mtimes.life||{})[devId()]
   };
 }
 function putMt(key,id,v){
@@ -2083,7 +2137,9 @@ function undoGrade(){
   if(u.srs) S.srs[u.id]=u.srs; else delete S.srs[u.id];
   if(u.status===null) delete S.status[u.id]; else S.status[u.id]=u.status;
   if(u.log) S.log[u.logKey]=u.log; else delete S.log[u.logKey];
+  if(u.life) S.life[u.dev]=u.life; else delete S.life[u.dev];
   putMt("srs",u.id,u.mtSrs); putMt("status",u.id,u.mtStatus); putMt("log",u.logKey,u.mtLog);
+  putMt("life",u.dev,u.mtLife);
   S.sync.dirty=true;
   saveSoon(); renderDrill(); $("#drillBody").scrollTop=0;
   var c=S._byId[u.id];
@@ -2473,7 +2529,7 @@ $("#impBackup").addEventListener("change",function(e){
   fr.onload=async function(){
     try{ var j=JSON.parse(fr.result);
       S.edits=j.edits||{}; S.status=j.status||{}; S.notes=j.notes||{}; S.etym=j.etym||{}; S.story=j.story||{}; S.sent=j.sent||{}; S.lastTask=j.lastTask||null; S.mtime=j.mtime||{}; S.mtimes=j.mtimes||{};
-      S.srs=j.srs||{}; S.lesson=j.lesson||{}; S.diff=j.diff||{}; S.log=j.log||{}; S.kanji=j.kanji||{}; if(j.size>0) S.size=j.size;
+      S.srs=j.srs||{}; S.lesson=j.lesson||{}; S.diff=j.diff||{}; S.log=j.log||{}; S.kanji=j.kanji||{}; S.life=j.life||{}; if(j.size>0) S.size=j.size;
       if(j.imports) S.imports=j.imports;
       await saveAll(); closeModal(); renderAll(); toast("Восстановлено");
     }catch(x){ toast("Файл не читается"); } };
@@ -2500,7 +2556,7 @@ function deckInfo(){ return S.sync.deck||{ gist:"", sig:"", at:0, n:0, parts:0 }
 function syncPayload(){
   return { v:9, at:Date.now(), edits:S.edits, status:S.status, notes:S.notes,
            etym:S.etym, story:S.story, sent:S.sent, lastTask:S.lastTask,
-           srs:S.srs, lesson:S.lesson, diff:S.diff, log:S.log, kanji:S.kanji, size:S.size||20,
+           srs:S.srs, lesson:S.lesson, diff:S.diff, log:S.log, kanji:S.kanji, life:S.life, size:S.size||20,
            mtime:S.mtime, mtimes:S.mtimes, deck:deckInfo() };
 }
 function partName(n){ return CARDPREFIX+"-"+("0"+n).slice(-2)+".json"; }
@@ -2556,7 +2612,7 @@ function remoteTime(r,key,id){ var e=lastRemote(r,key,id); return e===undefined?
 function mergeTexts(r){
   var added=0, updated=0, removed=0;
   /* srs и lesson — не строки, а объекты и числа: сравниваем их как есть */
-  ["etym","story","notes","status","sent","srs","lesson","diff","log","kanji"].forEach(function(key){
+  ["etym","story","notes","status","sent","srs","lesson","diff","log","kanji","life"].forEach(function(key){
     var rm=r[key]||{}, mine=S[key]||(S[key]={});
     var same=function(a,b){ return typeof a==="object"||typeof b==="object"
       ? JSON.stringify(a)===JSON.stringify(b) : a===b; };
@@ -3122,7 +3178,7 @@ function openMenu(){
     if(m==="texts"){ exportTexts(); closeModal(); }
     if(m==="backup"){ download("anki_backup.json",JSON.stringify({v:7,edits:S.edits,status:S.status,notes:S.notes,
       etym:S.etym,story:S.story,sent:S.sent,lastTask:S.lastTask,mtime:S.mtime,mtimes:S.mtimes,imports:S.imports,
-      srs:S.srs,lesson:S.lesson,diff:S.diff,log:S.log,kanji:S.kanji,size:lessonSize()},null,1),"application/json"); closeModal(); }
+      srs:S.srs,lesson:S.lesson,diff:S.diff,log:S.log,kanji:S.kanji,life:S.life,size:lessonSize()},null,1),"application/json"); closeModal(); }
     if(m==="restore") $("#impBackup").click();
     if(m==="sync") openSync();
     if(m==="help") openHelp();
@@ -3180,7 +3236,7 @@ function confirmWipe(){
     var ks=await slist("ankidash:");
     for(var i=0;i<ks.length;i++) await sdel(ks[i]);
     S.cards=[]; S.edits={}; S.status={}; S.notes={}; S.etym={}; S.story={}; S.sent={}; S.lastTask=null;
-    S.mtime={}; S.mtimes={}; S.srs={}; S.lesson={}; S.diff={}; S.log={}; S.kanji={}; S.imports=[]; S.deck=null;
+    S.mtime={}; S.mtimes={}; S.srs={}; S.lesson={}; S.diff={}; S.log={}; S.kanji={}; S.life={}; S.imports=[]; S.deck=null;
     S.open=null; S.filters={}; setHas(false);
     /* Если обмен настроен, всё это тут же приехало бы обратно: вместе
        с текстами стёрлись и отметки времени, по которым видно, что их удалили.
@@ -3297,7 +3353,7 @@ window.addEventListener("appinstalled",function(){ $("#install").hidden=true; to
 
 (async function(){
   await initStorage();
-  var sy=await sget(K.sync); if(sy) try{ S.sync=JSON.parse(sy); }catch(x){}
+  S.sync=parseObj(await sget(K.sync),S.sync);
   var ok=await loadAll();
   var новых=assignLessons();             // колода из старой версии: плана ещё нет
   var сброшено=await resetSchedule();    // разовый переход на расписание Anki
