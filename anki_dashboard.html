@@ -97,6 +97,8 @@ p{margin:0}
 .btn.ghost{font-size:12.5px;padding:10px 12px}
 .btn.big{font-size:14.5px;padding:11px 22px;font-weight:550}
 .btn.danger:hover{border-color:var(--hard);color:var(--hard)}
+.btn[disabled]{opacity:.4;cursor:default}
+.btn[disabled]:hover{border-color:var(--rule)}
 .btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,.chip:focus-visible,.row:focus-visible,
 summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
@@ -141,8 +143,10 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .editor{padding:8px 0 16px 14px;border-bottom:1px solid var(--rule);background:var(--panel)}
 .fgrid{display:flex;flex-direction:column;gap:10px;margin:10px 0}
 .btn.big small{display:block;font-size:11.5px;font-weight:400;opacity:.75;margin-top:2px;letter-spacing:.02em}
-#sizeOwn{font:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--rule);border-radius:3px;
+#sizeOwn,.numown{font:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--rule);border-radius:3px;
          background:var(--panel);color:var(--ink)}
+.numown{width:5.5em;font-family:var(--mono);text-align:center}
+.numrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;min-width:0}
 .planTop{display:flex;gap:10px;margin:14px 0 4px;flex-wrap:wrap}
 .planNum{flex:1 1 90px;border:1px solid var(--rule);border-radius:4px;padding:9px 10px;background:var(--panel);
          font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink3)}
@@ -322,6 +326,27 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .chunk textarea{width:100%;height:130px;font-family:var(--mono);font-size:11px;padding:8px;border:1px solid var(--rule);
                 border-radius:3px;background:var(--panel);color:var(--ink)}
 
+/* Настройки выгрузки. Раньше это были галочки-отрицания: «уже выгруженные»
+   значило «добавить к остальным уже выгруженные», а снятая галочка — «молча
+   пропустить их сверху списка». Понять это по надписи было нельзя, поэтому
+   человек скачивал не тот кусок колоды, о котором думал. Теперь каждая
+   настройка — выбор из нескольких названных наборов: видно, что выбрано,
+   и рядом написано, что это значит. */
+.setrow{display:flex;gap:var(--s2);align-items:center;flex-wrap:wrap;margin-top:var(--s3)}
+.setrow .lab{font-family:var(--mono);font-size:11px;color:var(--ink3);letter-spacing:.03em;
+             flex:0 0 auto;min-width:66px}
+.setrow .picks{display:flex;gap:6px;flex-wrap:wrap;min-width:0}
+.sethint{font-size:12px;color:var(--ink3);margin:5px 0 0 74px;line-height:1.5}
+.chip[disabled]{opacity:.4;cursor:default}
+.chip[disabled]:hover{border-color:var(--rule)}
+/* Что именно ляжет в файл — прямо перед кнопкой, а не догадками после скачивания */
+.will{margin-top:var(--s4);padding:11px 12px;border:1px solid var(--rule);border-radius:3px;background:var(--panel);
+      font-size:13px;line-height:1.6}
+.will .warn{color:var(--mid)}
+.will .skip{color:var(--ink3);font-size:12px;display:block;margin-top:4px}
+.willWords{font-family:var(--jp);font-size:14.5px;color:var(--ink2);margin-top:7px;line-height:1.75;overflow-wrap:anywhere}
+.willWords .tail{font-family:var(--ui);font-size:12px;color:var(--ink3)}
+
 .drill{position:fixed;inset:0;background:var(--paper);z-index:60;display:flex;flex-direction:column}
 .drillTop{display:flex;align-items:center;gap:var(--s3);padding:var(--s3) var(--s4);border-bottom:1px solid var(--rule);
          padding-top:calc(var(--s3) + env(safe-area-inset-top))}
@@ -373,7 +398,7 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .line3 .btn{flex:1 1 auto;min-height:44px}
   .btn.big{width:100%;min-height:48px}
   .say{min-width:44px;min-height:44px;font-size:17px}
-  #sizeOwn{font-size:16px;min-height:44px}
+  #sizeOwn,.numown{font-size:16px;min-height:44px}
   .lessons{max-height:40vh}
   .grades .btn{min-height:52px;padding:8px 6px;font-size:13px}
   .planNum{flex:1 1 72px}
@@ -412,8 +437,9 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .drillTop .btn{min-height:40px}
 
   .chunk textarea{font-size:16px;height:110px}
-  #taskN{font-size:16px;min-height:40px;padding:6px}
   #promptBox{font-size:16px}
+  .setrow .lab{min-width:100%}
+  .sethint{margin-left:0}
   input[type=checkbox]{width:20px;height:20px;margin:0 2px 0 0;flex:none}
   label.btn{display:inline-flex;align-items:center;gap:6px;min-height:44px}
 
@@ -694,6 +720,7 @@ var S={ cards:[], edits:{}, status:{}, notes:{}, etym:{}, story:{}, sent:{}, las
         mtime:{}, mtimes:{}, cardsAt:0, sync:{}, imports:[], deck:null,
         srs:{}, lesson:{}, diff:{}, log:{}, kanji:{}, life:{}, kview:{f:"all",q:"",L:null}, size:20, back:true, voice:false, sound:true, devId:"",
         filters:{}, sort:"again", q:"", page:0, PAGE:60, open:null, cursor:-1,
+        taskSet:"new", taskN:100, kTaskSet:"new", kTaskAll:false, kTaskN:60,
         theme:"auto", drill:null, _vis:[], _idx:{read:{},kanji:{}}, _byId:{} };
 var $=function(s){ return document.querySelector(s); };
 function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){
@@ -1326,6 +1353,7 @@ async function handleFiles(files){
 var CHUNK=300;
 function meta(){ return { v:7, at:Date.now(), chunks:Math.ceil(S.cards.length/CHUNK), deck:S.deck,
   imports:S.imports, theme:S.theme, sort:S.sort, lastTask:S.lastTask, cardsAt:S.cardsAt||0, ivMod:S.ivMod||1,
+  taskSet:S.taskSet, taskN:S.taskN, kTaskSet:S.kTaskSet, kTaskAll:!!S.kTaskAll, kTaskN:S.kTaskN,
   size:lessonSize(), sizeAt:S.sizeAt||0, back:S.back!==false, voice:!!S.voice,
   sound:S.sound!==false, devId:S.devId||"", week:S.week||"" }; }
 async function saveMeta(){ setHas(S.cards.length>0); return await sset(K.meta,JSON.stringify(meta())); }
@@ -1448,6 +1476,9 @@ async function loadAll(){
   if(m.size>0) S.size=m.size; S.sizeAt=m.sizeAt||0;
   S.back=m.back!==false; S.voice=!!m.voice; S.sound=m.sound!==false;
   S.devId=m.devId||""; S.week=m.week||"";
+  /* настройки выгрузки помним: за ними приходят по многу раз подряд */
+  if(m.taskSet) S.taskSet=m.taskSet; if(m.taskN!=null) S.taskN=+m.taskN||0;
+  if(m.kTaskSet) S.kTaskSet=m.kTaskSet; S.kTaskAll=!!m.kTaskAll; if(m.kTaskN!=null) S.kTaskN=+m.kTaskN||0;
   S.cardsAt=m.cardsAt||0;
   var arr=[];
   for(var c=0;c<(m.chunks||0);c++){ var s=await sget(K.cards+c); if(s){ try{ arr=arr.concat(JSON.parse(s)); }catch(e){} } }
@@ -1793,13 +1824,27 @@ var KPROMPT =
 "- Ключевые слова и сами японские знаки оборачивай в двойные звёздочки: **фонетик**, **扱**.\n"+
 "- Никаких заголовков решётками, таблиц и нумерованных списков, кроме \"writing\".\n";
 
-function kanjiPool(all,withDone){
+/* Те же названные наборы, что и у карточек: галочка «и уже разобранные»
+   не говорила, что снятая галочка молча выбрасывает знаки сверху списка. */
+var KTASKSETS=[
+  { k:"new",  lab:"Новые",      hint:"значения ещё нет — обычный случай",
+    ok:function(ch){ return !hasKanji(ch); } },
+  { k:"redo", lab:"Переделать", hint:"только те, что уже разобраны — заберём их заново",
+    ok:function(ch){ return hasKanji(ch); } },
+  { k:"all",  lab:"Все подряд", hint:"все знаки отсюда, без отбора",
+    ok:function(){ return true; } }
+];
+function kTaskSet(k){
+  for(var i=0;i<KTASKSETS.length;i++) if(KTASKSETS[i].k===k) return KTASKSETS[i];
+  return KTASKSETS[0];
+}
+function kanjiPool(all,k){
   var src=all?S.cards:((S._vis&&S._vis.length)?S._vis:S.cards), seen={}, out=[];
   for(var i=0;i<src.length;i++){
     var kj=mainText(src[i]).match(KRE)||[];
-    for(var k=0;k<kj.length;k++){ if(seen[kj[k]]) continue; seen[kj[k]]=1; out.push(kj[k]); }
+    for(var j=0;j<kj.length;j++){ if(seen[kj[j]]) continue; seen[kj[j]]=1; out.push(kj[j]); }
   }
-  if(!withDone) out=out.filter(function(ch){ return !hasKanji(ch); });
+  out=out.filter(kTaskSet(k).ok);
   var L=kanjiLoads().w;
   out.sort(function(a,b){ return (L[b]||0)-(L[a]||0); });
   return out;
@@ -1814,17 +1859,27 @@ function kanjiTaskRows(list){
 }
 function openKanjiTask(allDeck){
   if(!S.cards.length){ toast("Сначала загрузите card_summary.csv"); return; }
+  if(allDeck) S.kTaskAll=true;                  /* с экрана знаков считаем по всей колоде */
   var есть=Object.keys(S.kanji).filter(function(ch){ return hasKanji(ch); }).length;
+  var сколько=function(all,k){ return kanjiPool(all,k).length; };
+  var cnt={}; KTASKSETS.forEach(function(t){ cnt[t.k]=сколько(S.kTaskAll,t.k); });
+  S.kTaskSet=kTaskSet(S.kTaskSet).k;
+  if(!cnt[S.kTaskSet]){
+    var alt=KTASKSETS.filter(function(t){ return cnt[t.k]>0; })[0];
+    if(alt) S.kTaskSet=alt.k;
+  }
+
   openModal("Задание по кандзи","знаки идут от самых мешающих к остальным",
-    '<p class="note" id="ktaskInfo"></p>'+
-    '<p class="note">Разобрано знаков: '+есть+'</p>'+
-    '<div class="acts" style="margin-top:12px">'+
-      '<label class="btn ghost"><input type="checkbox" id="kAll"> по всей колоде, а не по списку</label>'+
-      '<label class="btn ghost"><input type="checkbox" id="kDone"> и уже разобранные</label>'+
-      '<label class="btn ghost">знаков <select id="kN" style="margin-left:6px">'+
-        '<option value="30">30</option><option value="60" selected>60</option>'+
-        '<option value="150">150</option><option value="0">все</option></select></label>'+
-    '</div>'+
+    '<p class="note">Разобрано знаков: '+есть+'.</p>'+
+    '<div class="setrow"><span class="lab">откуда</span>'+
+      picks("kAll",[{v:0,lab:"из списка",n:сколько(false,S.kTaskSet)},
+                    {v:1,lab:"вся колода",n:сколько(true,S.kTaskSet)}],S.kTaskAll?1:0)+'</div>'+
+    '<div class="setrow"><span class="lab">какие</span>'+
+      picks("kSet",KTASKSETS.map(function(t){ return { v:t.k, lab:t.lab, n:cnt[t.k], off:!cnt[t.k] }; }),S.kTaskSet)+'</div>'+
+    '<p class="sethint" id="kHint"></p>'+
+    '<div class="setrow"><span class="lab">сколько</span>'+
+      numBox("kN",S.kTaskN,cnt[S.kTaskSet])+'</div>'+
+    '<div class="will" id="kWill"></div>'+
     '<div class="acts"><button class="btn primary" id="kJson">Скачать JSON</button>'+
       '<button class="btn" id="kCsv">CSV</button>'+
       '<button class="btn ghost" id="kPrompt">Копировать промпт</button></div>'+
@@ -1832,23 +1887,57 @@ function openKanjiTask(allDeck){
       'разборы знаков разойдутся по знакам сами. Знак открывается нажатием на него '+
       'в раскрытой карточке или в уроке.</p>'+
     '<div class="chunk"><textarea id="kPromptBox" readonly>'+esc(KPROMPT)+'</textarea></div>');
-  var pool=function(){ return kanjiPool($("#kAll").checked,$("#kDone").checked); };
-  var take=function(){ var n=+$("#kN").value, p=pool(); return n?p.slice(0,n):p; };
+
+  var take=function(){ var p=kanjiPool(S.kTaskAll,S.kTaskSet); return S.kTaskN?p.slice(0,S.kTaskN):p; };
   var info=function(){
-    var p=pool(), t=take();
-    $("#ktaskInfo").textContent="Готово к выгрузке: "+p.length+". В файл попадёт: "+t.length+
-      ($("#kDone").checked?"":". Пропускаю те, у которых значение уже есть.");
+    var t=kTaskSet(S.kTaskSet), pool=kanjiPool(S.kTaskAll,S.kTaskSet), list=take();
+    $("#kHint").textContent=t.hint;
+    numMax("kN",pool.length);
+    var h;
+    if(!list.length){
+      h='<span class="warn">Выгружать нечего:</span> здесь нет знаков набора «'+esc(t.lab)+'».';
+    }else{
+      h='В файл уйдёт <b>'+list.length+'</b> '+plural(list.length,"знак","знака","знаков")+
+        (pool.length>list.length?' из '+pool.length+' подходящих':'')+
+        ', начиная с <b>'+esc(list[0])+'</b>.';
+      var head=list.slice(0,18);
+      h+='<div class="willWords">'+head.map(esc).join(" ")+
+        (list.length>head.length?' <span class="tail">и ещё '+(list.length-head.length)+'</span>':'')+'</div>';
+    }
+    $("#kWill").innerHTML=h;
+    $("#kJson").disabled=$("#kCsv").disabled=!list.length;
   };
-  ["kAll","kDone","kN"].forEach(function(id){ $("#"+id).addEventListener("change",info); });
-  if(allDeck) $("#kAll").checked=true;          /* с экрана знаков считаем по всей колоде */
-  info();
+  /* числа на фишках зависят друг от друга: сменили источник — счётчики наборов
+     другие, сменили набор — другие счётчики у источника */
+  var recount=function(){
+    var el=$("#kAll");
+    [].forEach.call(el.children,function(x){
+      var n=x.querySelector(".n"); if(n) n.textContent=сколько(x.dataset.v==="1",S.kTaskSet);
+    });
+    var es=$("#kSet");
+    [].forEach.call(es.children,function(x){
+      var n=x.querySelector(".n"); if(n){ var c=сколько(S.kTaskAll,x.dataset.v); n.textContent=c; x.disabled=!c; }
+    });
+  };
+  var fixSet=function(){
+    if(сколько(S.kTaskAll,S.kTaskSet)) return;
+    var alt=KTASKSETS.filter(function(t){ return сколько(S.kTaskAll,t.k)>0; })[0];
+    if(!alt) return;
+    S.kTaskSet=alt.k;
+    [].forEach.call($("#kSet").children,function(x){ x.classList.toggle("on",x.dataset.v===S.kTaskSet); });
+  };
+  onPicks("kAll",function(val){ S.kTaskAll=val==="1"; saveMeta(); fixSet(); recount(); info(); });
+  onPicks("kSet",function(val){ S.kTaskSet=val; saveMeta(); recount(); info(); });
+  onNum("kN",function(val){ S.kTaskN=val; info(); });
+  recount(); info();
+
   $("#kJson").onclick=function(){
-    var list=take(); if(!list.length){ toast("Нечего выгружать — всё уже разобрано"); return; }
+    var list=take(); if(!list.length) return;
     download("kanji_task_"+list.length+".json",JSON.stringify(kanjiTaskRows(list),null,1),"application/json");
     toast("Выгружено знаков: "+list.length);
   };
   $("#kCsv").onclick=function(){
-    var list=take(); if(!list.length){ toast("Нечего выгружать — всё уже разобрано"); return; }
+    var list=take(); if(!list.length) return;
     var rows=kanjiTaskRows(list);
     var cols=["rank","kanji","words_in_deck","in_deck","again_total","meaning","readings","radicals","etymology","story","mnemonic","writing"];
     var lines=[cols.join(",")];
@@ -2461,7 +2550,11 @@ function copy(t){
   else toast("Скопируйте вручную");
 }
 function download(name,text,type){
-  var b=new Blob(["\ufeff"+text],{type:(type||"text/csv")+";charset=utf-8"});
+  /* BOM нужен Excel, чтобы не поломать кириллицу в CSV. В JSON он лишний:
+     файл уходит нейросети и другим разборщикам, а строгий JSON.parse
+     спотыкается о невидимый первый символ. */
+  type=type||"text/csv";
+  var b=new Blob([(/json/.test(type)?"":"\ufeff")+text],{type:type+";charset=utf-8"});
   var u=URL.createObjectURL(b), a=document.createElement("a");
   a.href=u; a.download=name; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(function(){ URL.revokeObjectURL(u); },900);
@@ -2501,12 +2594,85 @@ function taskRows(list){
       etymology:"", story:"" };
   });
 }
-function taskPool(withSent,withEtym){
-  return (S._vis||[]).filter(function(c){
-    if(!withEtym && etymOf(c)) return false;
-    if(!withSent && S.sent[c.id]) return false;
-    return true;
+/* Наборы карточек для задания. Названы тем, зачем их берут, а не тем, чего
+   в них нет: «переделать» — ровно та просьба, с которой сюда приходят во
+   второй раз, и раньше её нельзя было выразить вовсе. Двумя галочками
+   «уже выгруженные» и «уже с разбором» набирался общий список, где новые
+   всё равно шли первыми, а старые не доживали до сотой строки. */
+var TASKSETS=[
+  { k:"new",  lab:"Новые",      hint:"разбора нет и ни разу не выгружал — обычный случай",
+    ok:function(c){ return !etymOf(c) && !S.sent[c.id]; } },
+  { k:"redo", lab:"Переделать", hint:"только те, что уже выгружал или где разбор уже есть — заберём их заново",
+    ok:function(c){ return !!etymOf(c) || !!S.sent[c.id]; } },
+  { k:"all",  lab:"Все подряд", hint:"вся выборка как есть, без отбора",
+    ok:function(){ return true; } }
+];
+function taskSet(k){
+  for(var i=0;i<TASKSETS.length;i++) if(TASKSETS[i].k===k) return TASKSETS[i];
+  return TASKSETS[0];
+}
+function taskPool(k){ return (S._vis||[]).filter(taskSet(k).ok); }
+function plural(n,a,b,c){
+  var d=n%100; if(d>=11&&d<=14) return c;
+  d=n%10; return d===1?a:(d>=2&&d<=4?b:c);
+}
+var FILTER_LAB={ tierA:"A", tierB:"B", tierC:"C", tierD:"D", noetym:"без разбора",
+  todo:"не проработаны", due:"к повтору", slow:"знаю, но медленно" };
+var SORT_LAB={ again:"по числу Again", score:"по сложности", rate:"по доле Again",
+  reviews:"по числу повторов", time:"по времени ответа", done:"по проработке", word:"по алфавиту" };
+/* Задание берёт не всю колоду, а то, что сейчас в списке. Из окна этого не
+   видно — значит, надо сказать словами: иначе фильтр, поставленный вчера,
+   молча решает, что именно скачается сегодня. */
+function selDesc(){
+  var f=Object.keys(S.filters).map(function(k){ return FILTER_LAB[k]||k; }), q=S.q.trim(), p=[];
+  if(f.length) p.push("фильтр "+f.join(" + "));
+  if(q) p.push("поиск «"+q+"»");
+  return p.length?p.join(", "):"весь список, без фильтров";
+}
+/* Выбор одного из нескольких. Выбранное закрашено, рядом число — сколько там
+   всего; пустой набор гасится, чтобы не тыкать в него зря. */
+function picks(id,items,cur){
+  return '<div class="picks" id="'+id+'">'+items.map(function(o){
+    return '<button class="chip'+(String(o.v)===String(cur)?" on":"")+'" data-v="'+esc(o.v)+'"'+
+      (o.off?" disabled":"")+'>'+esc(o.lab)+(o.n==null?"":'<span class="n">'+o.n+'</span>')+'</button>';
+  }).join("")+'</div>';
+}
+function onPicks(box,fn){
+  var el=$("#"+box); if(!el) return;
+  el.addEventListener("click",function(e){
+    var b=e.target.closest(".chip"); if(!b||b.disabled) return;
+    [].forEach.call(el.children,function(x){ x.classList.toggle("on",x===b); });
+    fn(b.dataset.v);
   });
+}
+/* Сколько брать — числом с клавиатуры, а не выбором из четырёх готовых:
+   нужное число почти никогда не совпадает с чужой заготовкой, а «50 или 100»
+   решалось за того, кто знает, сколько разборов он сегодня осилит. Пустое
+   поле значит «все»; кнопка рядом ставит это одним нажатием и показывает,
+   сколько их сейчас подходит. */
+function numBox(id,cur,max){
+  return '<div class="numrow" id="'+id+'box">'+
+    '<input class="numown" id="'+id+'" type="number" min="1" step="1" inputmode="numeric" '+
+      'value="'+(cur>0?cur:"")+'" placeholder="все" aria-label="сколько брать">'+
+    '<button class="chip'+(cur>0?"":" on")+'" type="button">все<span class="n">'+(max==null?"":max)+'</span></button>'+
+    '</div>';
+}
+function onNum(id,fn){
+  var el=$("#"+id), box=$("#"+id+"box"); if(!el||!box) return;
+  var b=box.querySelector(".chip"), t=0;
+  var apply=function(){
+    var v=Math.floor(+el.value); if(!isFinite(v)||v<1) v=0;
+    b.classList.toggle("on",!v);
+    fn(v);
+    clearTimeout(t); t=setTimeout(saveMeta,600);   /* в хранилище — не на каждую цифру */
+  };
+  el.addEventListener("input",apply);
+  b.addEventListener("click",function(){ el.value=""; apply(); });
+}
+/* число на кнопке «все» живёт от набора к набору */
+function numMax(id,n){
+  var box=$("#"+id+"box"); if(!box) return;
+  var s=box.querySelector(".n"); if(s) s.textContent=n;
 }
 function markSent(list){
   var today=new Date().toISOString().slice(0,10);
@@ -2517,46 +2683,79 @@ function markSent(list){
 function openTask(){
   var v=S._vis||[];
   if(!v.length){ toast("Список пуст"); return; }
-  var haveEtym=0, haveSent=0;
-  v.forEach(function(c){ if(etymOf(c)) haveEtym++; else if(S.sent[c.id]) haveSent++; });
-  openModal("Задание для нейросети", v.length+" карточек в выборке",
-    '<p class="note" id="taskInfo"></p>'+
-    (S.lastTask?'<p class="note">Прошлая выгрузка: '+esc(S.lastTask.at)+', '+S.lastTask.n+' шт., последнее слово '+esc(S.lastTask.word)+'.</p>':"")+
-    '<div class="acts" style="margin-top:12px">'+
-      '<label class="btn ghost"><input type="checkbox" id="incSent"> уже выгруженные ('+haveSent+')</label>'+
-      '<label class="btn ghost"><input type="checkbox" id="incEtym"> уже с разбором ('+haveEtym+')</label>'+
-      '<label class="btn ghost">карточек <select id="taskN" style="margin-left:6px">'+
-        '<option value="50">50</option><option value="100" selected>100</option>'+
-        '<option value="300">300</option><option value="0">все</option></select></label>'+
-    '</div>'+
+  var cnt={}; TASKSETS.forEach(function(t){ cnt[t.k]=taskPool(t.k).length; });
+  /* если в запомненном наборе пусто, встаём на первый непустой: окно должно
+     открываться в состоянии, из которого можно сразу нажать «Скачать» */
+  S.taskSet=taskSet(S.taskSet).k;
+  if(!cnt[S.taskSet]){
+    var alt=TASKSETS.filter(function(t){ return cnt[t.k]>0; })[0];
+    if(alt) S.taskSet=alt.k;
+  }
+
+  openModal("Задание для нейросети", v.length+" "+plural(v.length,"карточка","карточки","карточек")+" в выборке",
+    '<p class="note">Беру из того, что сейчас в списке: <b>'+esc(selDesc())+'</b>; порядок — '+
+      esc(SORT_LAB[S.sort]||S.sort)+'. Нужны другие карточки или другой порядок — закройте окно '+
+      'и поменяйте фильтр, поиск или сортировку в списке.</p>'+
+    '<div class="setrow"><span class="lab">какие</span>'+
+      picks("taskSet",TASKSETS.map(function(t){ return { v:t.k, lab:t.lab, n:cnt[t.k], off:!cnt[t.k] }; }),S.taskSet)+'</div>'+
+    '<p class="sethint" id="taskHint"></p>'+
+    '<div class="setrow"><span class="lab">сколько</span>'+
+      numBox("taskN",S.taskN,cnt[S.taskSet])+'</div>'+
+    '<div class="will" id="taskWill"></div>'+
     '<div class="acts"><button class="btn primary" id="taskJson">Скачать JSON</button>'+
       '<button class="btn" id="taskCsv">CSV</button>'+
       '<button class="btn ghost" id="taskPrompt">Копировать промпт</button></div>'+
+    (S.lastTask?'<p class="note" style="margin-top:10px">Прошлый раз: '+esc(S.lastTask.at)+', '+
+      S.lastTask.n+' шт., последнее слово '+esc(S.lastTask.word)+'.</p>':"")+
     '<div class="chunk"><textarea id="promptBox" readonly>'+esc(PROMPT)+'</textarea></div>');
-  var pool=function(){ return taskPool($("#incSent").checked,$("#incEtym").checked); };
-  var take=function(){ var n=+$("#taskN").value, p=pool(); return n?p.slice(0,n):p; };
+
+  var take=function(){ var p=taskPool(S.taskSet); return S.taskN?p.slice(0,S.taskN):p; };
+  /* Главное в окне — не «сколько подходит», а какие именно слова уйдут в файл
+     и с какого он начнётся. Раньше первое слово выяснялось уже в скачанном
+     файле и нередко оказывалось не тем, которого ждали. */
   var info=function(){
-    var p=pool(), t=take();
-    $("#taskInfo").textContent="Готово к выгрузке: "+p.length+". В файл попадёт: "+t.length+
-      ". Пропускаю уже выгруженные и те, где разбор есть.";
+    var t=taskSet(S.taskSet), pool=taskPool(S.taskSet), list=take();
+    $("#taskHint").textContent=t.hint;
+    numMax("taskN",pool.length);
+    var h;
+    if(!list.length){
+      h='<span class="warn">Выгружать нечего:</span> в этой выборке нет карточек набора «'+esc(t.lab)+'».';
+    }else{
+      var skip=0; while(skip<v.length && !t.ok(v[skip])) skip++;
+      h='В файл уйдёт <b>'+list.length+'</b> '+plural(list.length,"карточка","карточки","карточек")+
+        (pool.length>list.length?' из '+pool.length+' подходящих':'')+
+        ', начиная с <b>'+esc(mainText(list[0]))+'</b>.';
+      if(skip>0) h+='<span class="skip">Сверху списка пропущено '+skip+' — '+
+        (skip===1?'она не из набора':'они не из набора')+' «'+esc(t.lab)+'».</span>';
+      var head=list.slice(0,12);
+      h+='<div class="willWords">'+head.map(function(c){ return esc(mainText(c)); }).join(" · ")+
+        (list.length>head.length?' <span class="tail">и ещё '+(list.length-head.length)+
+          ', последнее — '+esc(mainText(list[list.length-1]))+'</span>':'')+'</div>';
+    }
+    $("#taskWill").innerHTML=h;
+    $("#taskJson").disabled=$("#taskCsv").disabled=!list.length;
   };
-  ["incSent","incEtym","taskN"].forEach(function(id){ $("#"+id).addEventListener("change",info); });
+  onPicks("taskSet",function(val){ S.taskSet=val; saveMeta(); info(); });
+  onNum("taskN",function(val){ S.taskN=val; info(); });
   info();
-  $("#taskJson").onclick=function(){
-    var list=take(); if(!list.length){ toast("Нечего выгружать — всё уже сделано"); return; }
-    download("anki_task_"+list.length+".json",JSON.stringify(taskRows(list),null,1),"application/json");
+
+  var done=function(list){
     markSent(list); info(); renderList();
-    toast("Выгружено "+list.length+", помечены как отправленные");
+    toast("Выгружено "+list.length+", помечены как выгруженные");
+  };
+  $("#taskJson").onclick=function(){
+    var list=take(); if(!list.length) return;
+    download("anki_task_"+list.length+".json",JSON.stringify(taskRows(list),null,1),"application/json");
+    done(list);
   };
   $("#taskCsv").onclick=function(){
-    var list=take(); if(!list.length){ toast("Нечего выгружать — всё уже сделано"); return; }
+    var list=take(); if(!list.length) return;
     var rows=taskRows(list);
     var cols=["rank","importance","again","reviews","card_id","note_id","word","reading","sentence","dict_jp","dict_en","etymology","story"];
     var lines=[cols.join(",")];
     rows.forEach(function(r){ lines.push(cols.map(function(k){ return csvCell(r[k]); }).join(",")); });
     download("anki_task_"+rows.length+".csv",lines.join("\n"));
-    markSent(list); info(); renderList();
-    toast("Выгружено "+list.length+", помечены как отправленные");
+    done(list);
   };
   $("#taskPrompt").onclick=function(){ copy(PROMPT); };
 }
@@ -3358,7 +3557,7 @@ function openMenu(){
       '<button class="item" data-m="sync">Синхронизация между устройствами<small>'+
         (S.sync.gist?"обмен идёт сам; последняя отправка: "+esc(S.sync.at||"ещё не было"):"настроить обмен")+'</small></button>'+
       '<button class="item" data-m="add">Добавить файл<small>новый экспорт или ответ нейросети</small></button>'+
-      '<button class="item" data-m="task">Задание для нейросети<small>по текущей выборке</small></button>'+
+      '<button class="item" data-m="task">Задание для нейросети<small>по тому, что сейчас в списке; можно и переделать старое</small></button>'+
       '<button class="item" data-m="ktask">Задание по кандзи<small>значения, радикалы, мнемоники</small></button>'+
       '<button class="item" data-m="cid">Список cid: для Anki<small>чтобы найти эти карточки в браузере Anki</small></button>'+
       '<button class="item" data-m="bulk">Отметить всё видимое проработанным</button><button class="item" data-m="forget">Забыть, что уже выгружено<small>тогда эти слова снова попадут в задание</small></button>'+
@@ -3428,6 +3627,8 @@ function openHelp(){
     '<p style="margin-top:8px"><b>Фишка «знаю, но медленно»</b> отбирает карточки, где провалов мало, '+
       'а ответ долгий. Это будущие проблемы: память ещё хрупкая, хотя ошибок пока нет.</p>'+
     '<p style="margin-top:8px"><b>Круг работы:</b> отобрать фильтром «без разбора» → «Задание для нейросети» → скачать JSON → отдать нейросети с промптом → её ответ перетащить обратно сюда → читать в режиме «Читать по одной».</p>'+
+    '<p style="margin-top:8px"><b>Задание берёт то, что сейчас в списке</b> — с вашим фильтром, поиском и сортировкой; окно так и пишет, откуда берёт и с какого слова начнётся файл. '+
+      'Три набора: <b>Новые</b> — без разбора и ни разу не выгруженные; <b>Переделать</b> — только те, что уже выгружались или где разбор есть, если хочется собрать его заново; <b>Все подряд</b> — вся выборка.</p>'+
     '<p style="margin-top:8px"><b>Клавиши:</b> <span class="kbd">/</span> поиск · <span class="kbd">j</span><span class="kbd">k</span> по списку · '+
     '<span class="kbd">Enter</span> раскрыть · <span class="kbd">d</span> отметить · <span class="kbd">s</span> читать по одной · <span class="kbd">Esc</span> закрыть. '+
     'В чтении: <span class="kbd">←</span><span class="kbd">→</span> или свайп.</p>'+
