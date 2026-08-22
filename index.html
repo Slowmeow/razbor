@@ -96,7 +96,10 @@ p{margin:0}
 .btn.primary:hover{border-color:var(--accent)}
 .btn.ghost{font-size:12.5px;padding:10px 12px}
 .btn.big{font-size:14.5px;padding:11px 22px;font-weight:550}
-.btn.danger:hover{border-color:var(--hard);color:var(--hard)}
+/* Красным — с самого начала, а не только под курсором: «Удалить» стоит рядом
+   со «Свернуть», и разницу надо видеть до нажатия, а не после. */
+.btn.danger{color:var(--hard)}
+.btn.danger:hover{border-color:var(--hard)}
 .btn[disabled]{opacity:.4;cursor:default}
 .btn[disabled]:hover{border-color:var(--rule)}
 .btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,.chip:focus-visible,.row:focus-visible,
@@ -140,9 +143,26 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .nums{font-family:var(--mono);font-size:11px;color:var(--ink3);text-align:right;line-height:1.5;white-space:nowrap}
 .nums b{font-size:15px;color:var(--c);display:block;font-weight:600}
 
+/* ---------- выбор нескольких карточек ----------
+   Кнопка «Выбрать» переключает список: нажатие по строке не раскрывает
+   карточку, а ставит галочку. Внизу выезжает полоса с тем, что можно
+   сделать с отмеченными — забыть расписание или удалить совсем. */
+.pick{display:none;width:20px;height:20px;border:1px solid var(--rule);border-radius:3px;
+      align-items:center;justify-content:center;font-size:12px;line-height:1;color:transparent}
+#list.picking{padding-bottom:76px}
+#list.picking .row{grid-template-columns:3px 20px 22px 1fr auto}
+#list.picking .pick{display:flex}
+#list.picking .row.picked .pick{background:var(--accent);border-color:var(--accent);color:var(--paper)}
+#list.picking .row.picked{background:var(--panel)}
+.selbar{position:fixed;left:0;right:0;bottom:0;z-index:55;background:var(--paper);border-top:1px solid var(--rule);
+        display:flex;gap:var(--s2);align-items:center;flex-wrap:wrap;
+        padding:10px var(--s4) calc(10px + env(safe-area-inset-bottom))}
+.selbar .n{font-family:var(--mono);font-size:12px;color:var(--ink3);margin-right:auto;white-space:nowrap}
+
 .editor{padding:8px 0 16px 14px;border-bottom:1px solid var(--rule);background:var(--panel)}
 .fgrid{display:flex;flex-direction:column;gap:10px;margin:10px 0}
 .btn.big small{display:block;font-size:11.5px;font-weight:400;opacity:.75;margin-top:2px;letter-spacing:.02em}
+.btn small{display:block;font-family:var(--mono);font-size:10.5px;font-weight:400;opacity:.7;margin-top:2px}
 #sizeOwn,.numown{font:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--rule);border-radius:3px;
          background:var(--panel);color:var(--ink)}
 .numown{width:5.5em;font-family:var(--mono);text-align:center}
@@ -208,6 +228,8 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
         align-items:baseline;gap:7px;min-height:38px}
 .kjword:hover{border-color:var(--ink2)}
 .kjword .n{font-family:var(--mono);font-size:11px;color:var(--hard)}
+/* в уроке слова показаны для справки — нажимать их некуда, урок бы сбился */
+span.kjword{cursor:default} span.kjword:hover{border-color:var(--rule)}
 /* знак прямо в строке списка: долгое нажатие открывает разбор.
    Подчёркивание — «разобран», оно же намекает, что по знаку можно нажать. */
 /* .term — флекс с отступом между элементами, поэтому слово целиком лежит
@@ -220,6 +242,7 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .ksheet{position:fixed;inset:0;background:var(--paper);z-index:60;display:flex;flex-direction:column}
 .ksheet .kstat{flex:1;font-family:var(--mono);font-size:11.5px;color:var(--ink3);min-width:0;
                overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ksheet .drillTop{flex-wrap:wrap}
 .kbar{padding:10px 14px;border-bottom:1px solid var(--rule);display:flex;flex-direction:column;gap:8px}
 .kbar input{font:inherit;font-size:16px;padding:8px 10px;border:1px solid var(--rule);border-radius:3px;
             background:var(--panel);color:var(--ink);width:100%}
@@ -284,6 +307,15 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .fold .body.prose p{margin:0 0 11px} .fold .body.prose p:last-child{margin:0}
 .fold .body.prose strong{font-weight:700;color:var(--ink)}
 .fold .body.prose .jp{font-family:var(--jp);font-size:15.5px}
+/* Разборы, собранные нейросетью, приходят полотном. На карточке нужен смысл,
+   а не весь текст сразу: показываем начало, остальное — по кнопке. */
+.fold .body.prose.short{max-height:9.5em;overflow:hidden;position:relative}
+.fold .body.prose.short::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3em;
+  background:linear-gradient(to bottom,transparent,var(--paper));pointer-events:none}
+.moreTxt{font:inherit;font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--ink3);background:none;border:0;border-top:1px solid var(--rule);width:100%;text-align:left;
+  padding:8px 12px;cursor:pointer}
+.moreTxt:hover{color:var(--ink2)}
 .meta{display:flex;gap:14px;flex-wrap:wrap;font-family:var(--mono);font-size:11px;color:var(--ink3)}
 .simlist{display:flex;gap:6px;flex-wrap:wrap;padding:10px 12px}
 .simlist button{font:inherit;font-family:var(--jp);font-size:13px;padding:3px 9px;border:1px solid var(--rule);border-radius:3px;
@@ -361,6 +393,10 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .drillRead{font-family:var(--jp);font-size:17px;color:var(--ink3);margin-top:4px}
 .drillSent{font-family:var(--jp);font-size:17px;margin-top:16px;padding-left:12px;border-left:3px solid var(--rule)}
 .drillStats{display:flex;gap:14px;flex-wrap:wrap;font-family:var(--mono);font-size:11.5px;color:var(--ink3);margin-top:12px}
+/* урок по кандзи: знак крупно и по центру — вспоминать нужно его, а не строку */
+.drillKanji{font-family:var(--jp);font-size:104px;line-height:1.05;text-align:center;margin:6px 0 2px}
+.drillMean{font-family:var(--serif);font-size:23px;line-height:1.35;text-align:center;margin-top:8px;color:var(--ink)}
+.drillKread{font-family:var(--jp);font-size:16px;color:var(--ink2);text-align:center;margin-top:6px}
 .drillBottom{display:flex;gap:var(--s2);padding:var(--s3) var(--s4);border-top:1px solid var(--rule);max-width:680px;margin:0 auto;width:100%;
              padding-bottom:calc(12px + env(safe-area-inset-bottom))}
 .drillBottom .btn{flex:1}
@@ -413,6 +449,9 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .row{grid-template-columns:3px 20px 1fr;gap:8px;padding:12px 2px;min-height:56px}
   .nums{grid-column:3;text-align:left;display:flex;gap:10px}
   .nums b{display:inline}
+  #list.picking .row{grid-template-columns:3px 20px 20px 1fr}
+  #list.picking .nums{grid-column:4}
+  .pick{width:24px;height:24px}
 
   .editor{padding-left:6px;padding-right:2px}
   .fold>summary{padding:12px;min-height:44px;display:flex;align-items:center}
@@ -431,6 +470,8 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .menu .item{padding:13px 12px;min-height:48px}
 
   .drillWord{font-size:38px}
+  .drillKanji{font-size:82px}
+  .drillMean{font-size:20px}
   .drillBody{padding:20px 14px 16px}
   .drillBottom{padding:10px 12px calc(10px + env(safe-area-inset-bottom))}
   .drillBottom .btn{min-height:48px}
@@ -493,7 +534,7 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 <section class="controls" id="controls" hidden>
   <div class="line1">
     <input type="search" id="q" placeholder="Поиск по словам и разборам">
-    <select id="sort">
+    <select id="sort" aria-label="Порядок карточек">
       <option value="again" data-s="Again">по числу Again</option>
       <option value="score" data-s="сложность">по сложности с поправкой на объём</option>
       <option value="rate" data-s="доля Again">по доле Again</option>
@@ -517,7 +558,8 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   <button class="btn primary cta" id="lessonBtn" hidden>Заниматься</button>
   <div class="line3">
     <button class="btn" id="startDrill">Читать по одной</button>
-    <button class="btn" id="kanjiBtn">Знаки</button>
+    <button class="btn" id="kanjiBtn">Кандзи</button>
+    <button class="btn" id="pickBtn">Выбрать</button>
     <span class="spacer"></span>
     <span class="count" id="count"></span>
   </div>
@@ -547,10 +589,11 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   <div class="drillTop">
     <button class="btn ghost" id="kExit">К списку</button>
     <span class="kstat" id="kStat"></span>
-    <button class="btn" id="kTaskBtn">Задание</button>
+    <button class="btn ghost" id="kTaskBtn">Задание</button>
+    <button class="btn primary" id="kLearnBtn">Заниматься</button>
   </div>
   <div class="kbar">
-    <input type="search" id="kFind" placeholder="знак, значение, мнемоника…" autocomplete="off">
+    <input type="search" id="kFind" placeholder="кандзи, значение, мнемоника…" autocomplete="off">
     <div class="chips" id="kChips">
       <button class="chip on" data-kv="all">все</button>
       <button class="chip" data-kv="todo">не разобраны</button>
@@ -581,6 +624,14 @@ summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
       <button class="btn g2" data-g="2"><i class="kbd">3</i>Помню<small id="gs2"></small></button>
     </div>
   </div>
+</div>
+
+<div class="selbar" id="selbar" hidden>
+  <span class="n" id="selCount"></span>
+  <button class="btn ghost" id="selAll" title="отметить всё, что сейчас в списке">Все</button>
+  <button class="btn" id="selForget">Забыть</button>
+  <button class="btn ghost danger" id="selDel">Удалить</button>
+  <button class="btn ghost" id="selOff">Готово</button>
 </div>
 
 <input type="file" id="fileinMenu" multiple accept=".csv,.json,.tsv" hidden>
@@ -712,20 +763,36 @@ var K={ meta:"ankidash:meta", cards:"ankidash:cards:", edits:"ankidash:edits",
         status:"ankidash:status", notes:"ankidash:notes", etym:"ankidash:etym", story:"ankidash:story",
         sent:"ankidash:sent", mtime:"ankidash:mtime", mtimes:"ankidash:mtimes", sync:"ankidash:sync",
         srs:"ankidash:srs", lesson:"ankidash:lesson", diff:"ankidash:diff", log:"ankidash:log",
-        kanji:"ankidash:kanji", srsv:"ankidash:srsv", life:"ankidash:life" };
+        kanji:"ankidash:kanji", srsv:"ankidash:srsv", life:"ankidash:life", gone:"ankidash:gone" };
 
 /* ---------- состояние ---------- */
 var TIER={ A:12, B:8, C:4 };
 var S={ cards:[], edits:{}, status:{}, notes:{}, etym:{}, story:{}, sent:{}, lastTask:null,
         mtime:{}, mtimes:{}, cardsAt:0, sync:{}, imports:[], deck:null,
-        srs:{}, lesson:{}, diff:{}, log:{}, kanji:{}, life:{}, kview:{f:"all",q:"",L:null}, size:20, back:true, voice:false, sound:true, devId:"",
+        srs:{}, lesson:{}, diff:{}, log:{}, kanji:{}, life:{}, gone:{}, kview:{f:"all",q:"",L:null}, size:20, back:true, voice:false, sound:true, devId:"",
         filters:{}, sort:"again", q:"", page:0, PAGE:60, open:null, cursor:-1,
         taskSet:"new", taskN:100, kTaskSet:"new", kTaskAll:false, kTaskN:60,
-        theme:"auto", drill:null, _vis:[], _idx:{read:{},kanji:{}}, _byId:{} };
+        theme:"auto", drill:null, sel:{}, picking:false, _vis:[], _idx:{read:{},kanji:{}}, _byId:{} };
 var $=function(s){ return document.querySelector(s); };
 function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){
   return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
-function toast(m,ms){ var t=$("#toast"); t.textContent=m; t.hidden=false;
+/* Уведомление всплывает у нижнего края — ровно там, где в уроке стоят кнопки
+   оценки. Раньше оно ложилось прямо на них: подсказка закрывала то, по чему
+   сейчас надо попасть пальцем. Поэтому меряем нижнюю полосу, какая бы она
+   ни была сейчас, и встаём над ней. */
+function bottomBarH(){
+  var ids=["#drillRead","#drillLearn","#selbar"], h=0;
+  for(var i=0;i<ids.length;i++){
+    var e=$(ids[i]); if(!e) continue;
+    var r=e.getBoundingClientRect().height;
+    if(r>h) h=r;
+  }
+  return h;
+}
+function toast(m,ms){ var t=$("#toast"); t.textContent=m;
+  var h=bottomBarH();
+  t.style.bottom = h>0 ? (Math.round(h)+14)+"px" : "";
+  t.hidden=false;
   clearTimeout(t._t); t._t=setTimeout(function(){ t.hidden=true; }, ms||2400); }
 
 /* ---------- поля ---------- */
@@ -823,7 +890,7 @@ function detect(cols){
   if(stats&&(c.indexOf("card_id")>=0||c.indexOf("total_reviews")>=0)) return "cards";
   /* разбор знаков: у него своя колонка kanji и нет card_id. Проверяем до «answer»,
      потому что колонки etymology и story есть и там, и там */
-  if(pick(cols,["kanji","знак","иероглиф"])&&
+  if(pick(cols,["kanji","кандзи","знак","иероглиф"])&&
      pick(cols,["meaning","значение","radicals","радикалы","mnemonic","мнемоника","readings","чтения"])) return "kanji";
   if(pick(cols,["этимология","etymology","разбор","story","интересное","история"])) return "answer";
   if(c.indexOf("deck_name")>=0&&c.indexOf("review_count")>=0) return "deck";
@@ -1058,6 +1125,11 @@ function gainOf(c,g,был){
   if(g===0) return 0;
   return Math.round(weightOf(c)*(g===1?0.6:1)*(был?0.6:1));
 }
+/* Расписание одно на всё: ключ — либо cid карточки (только цифры), либо
+   сам кандзи. Пересечься они не могут, поэтому кандзи-уроки живут в тех же
+   S.srs и S.lesson и бесплатно получают синхронизацию, откат и копии. */
+var KONE=/^[一-鿿]$/;
+function isKanjiKey(id){ return KONE.test(String(id)); }
 function grade(id,g){
   var было=S.srs[id]||null;
   var был=!!было, держит=был&&(было.i||0)>=7&&isDue(id)&&g>0;
@@ -1067,15 +1139,19 @@ function grade(id,g){
      шагах обучения к удержанию отношения не имеют. Отдельно зрелые: интервал
      от трёх недель, это и есть проверка, что память держит долго. */
   var наПовторе=!!(было&&было.q==="review"), зрелая=наПовторе&&(было.i||0)>=21;
-  if(c) logAdd({ w:gainOf(c,g,был), n:g>0?1:0, h:держит?1:0,
-    p:наПовторе?1:0, pk:(наПовторе&&g>0)?1:0,
-    pm:зрелая?1:0, pmk:(зрелая&&g>0)?1:0 });
+  var зап={ h:держит?1:0, p:наПовторе?1:0, pk:(наПовторе&&g>0)?1:0,
+            pm:зрелая?1:0, pmk:(зрелая&&g>0)?1:0 };
+  /* Вес меряет тяжесть, снятую с колоды, и берётся из карточки. У кандзи
+     своего веса нет — разбавлять им общий счёт нечестно, поэтому кандзи
+     идут в дневник отдельной колонкой. */
+  if(c){ зап.w=gainOf(c,g,был); зап.n=g>0?1:0; logAdd(зап); }
+  else if(isKanjiKey(id)){ зап.w=0; зап.k=g>0?1:0; logAdd(зап); }
   var n=nextState(было,g,id);
   S.srs[id]=n.st;
   touch(id,"srs");
   /* карточка выпустилась и уехала на дни — считаем её проработанной,
      чтобы прежние счётчики и фильтры остались осмысленными */
-  if(n.mins===0&&n.st.i>=1&&S.status[id]!=="done"){ S.status[id]="done"; touch(id,"status"); }
+  if(c&&n.mins===0&&n.st.i>=1&&S.status[id]!=="done"){ S.status[id]="done"; touch(id,"status"); }
   return n;
 }
 /* Отметил проработанной руками — карточка не должна пропадать навсегда:
@@ -1129,8 +1205,8 @@ function logByDay(){
   var by={};
   Object.keys(S.log).forEach(function(k){
     var d=k.split("|")[0], e=S.log[k]||{};
-    if(!by[d]) by[d]={ день:d, w:0, n:0, l:0, h:0 };
-    by[d].w+=e.w||0; by[d].n+=e.n||0; by[d].l+=e.l||0; by[d].h+=e.h||0;
+    if(!by[d]) by[d]={ день:d, w:0, n:0, l:0, h:0, k:0 };
+    by[d].w+=e.w||0; by[d].n+=e.n||0; by[d].l+=e.l||0; by[d].h+=e.h||0; by[d].k+=e.k||0;
   });
   return by;
 }
@@ -1138,7 +1214,7 @@ function lastDays(k){
   var by=logByDay(), out=[], t=Date.now();
   for(var i=k-1;i>=0;i--){
     var d=dayKey(t-i*DAY);
-    out.push(by[d]||{ день:d, w:0, n:0, l:0, h:0 });
+    out.push(by[d]||{ день:d, w:0, n:0, l:0, h:0, k:0 });
   }
   return out;
 }
@@ -1146,8 +1222,9 @@ function lastDays(k){
    и никогда не показываем потерю: серия должна тянуть, а не пугать. */
 function streak(){
   var by=logByDay(), k=0, t=Date.now();
-  if(!(by[dayKey(t)]&&by[dayKey(t)].n)) t-=DAY;      // сегодня ещё не поздно
-  while(true){ var e=by[dayKey(t)]; if(!e||!e.n) break; k++; t-=DAY; }
+  var занимались=function(e){ return !!(e&&(e.n||e.k)); };   // слова или кандзи — всё занятие
+  if(!занимались(by[dayKey(t)])) t-=DAY;             // сегодня ещё не поздно
+  while(занимались(by[dayKey(t)])){ k++; t-=DAY; }
   return k;
 }
 function totalWeight(){
@@ -1267,11 +1344,27 @@ function parseFile(file,onProgress){
       error:function(e){ rej(e); } });
   });
 }
+/* ---------- удалённые карточки ----------
+
+   Карточку удаляют здесь руками, а колода приезжает из Anki целиком и снова.
+   Поэтому мало выкинуть её из списка: нужен след «эту я убрал», иначе
+   следующий же экспорт статистики вернёт её обратно, и так каждый раз.
+   След лёгкий — только cid и время, — ездит в синхронизации и убирает
+   карточку на других устройствах тоже. */
+function applyGone(){
+  var g=S.gone||{}, было=S.cards.length;
+  if(!Object.keys(g).length||!было) return 0;
+  S.cards=S.cards.filter(function(c){ return !g[c.id]; });
+  var убрано=было-S.cards.length;
+  if(убрано) buildIndex();
+  return убрано;
+}
 function mergeCards(inc,stamp){
   var idx={},i; for(i=0;i<S.cards.length;i++) idx[S.cards[i].id]=S.cards[i];
   var added=0,moved=0,seen={};
   for(i=0;i<inc.length;i++){
     var nc=inc[i], e=idx[nc.id]; seen[nc.id]=1;
+    if(S.gone[nc.id]) continue;                  // эту карточку убрали здесь — не воскрешаем
     if(!e){ nc.added=stamp; nc.dn=0; S.cards.push(nc); idx[nc.id]=nc; added++; continue; }
     var dn=nc.n-e.n;
     /* было e.dn=dn только при dn>0 — и старая пометка «+7 повт.» висела
@@ -1345,7 +1438,7 @@ async function handleFiles(files){
     S.page=0;
   }
   if(ans){ buildIndex(); await saveAll(); say("Разборов добавлено: "+ans.ok+(ans.miss?", не нашёл карточку для "+ans.miss:"")); }
-  if(kan){ await saveTexts(); say("Знаков разобрано: "+kan.ok+(kan.miss?", пропущено строк: "+kan.miss:"")); }
+  if(kan){ await saveTexts(); say("Кандзи разобрано: "+kan.ok+(kan.miss?", пропущено строк: "+kan.miss:"")); }
   renderAll();
 }
 
@@ -1392,6 +1485,7 @@ async function saveAll(){
   await sset(K.log,JSON.stringify(S.log));
   await sset(K.kanji,JSON.stringify(S.kanji));
   await sset(K.life,JSON.stringify(S.life));
+  await sset(K.gone,JSON.stringify(S.gone));
   await sset(K.mtime,JSON.stringify(S.mtime));
   await sset(K.mtimes,JSON.stringify(S.mtimes));
   await sset(K.sync,JSON.stringify(S.sync));
@@ -1411,6 +1505,7 @@ async function saveTexts(){
   await sset(K.log,JSON.stringify(S.log));
   await sset(K.kanji,JSON.stringify(S.kanji));
   await sset(K.life,JSON.stringify(S.life));
+  await sset(K.gone,JSON.stringify(S.gone));
   await sset(K.mtime,JSON.stringify(S.mtime));
   await sset(K.mtimes,JSON.stringify(S.mtimes));
   await sset(K.sync,JSON.stringify(S.sync));
@@ -1433,6 +1528,7 @@ function saveSoon(){ clearTimeout(saveT); saveT=setTimeout(async function(){
   await sset(K.srs,JSON.stringify(S.srs)); await sset(K.lesson,JSON.stringify(S.lesson));
   await sset(K.diff,JSON.stringify(S.diff)); await sset(K.log,JSON.stringify(S.log));
   await sset(K.kanji,JSON.stringify(S.kanji)); await sset(K.life,JSON.stringify(S.life));
+  await sset(K.gone,JSON.stringify(S.gone));
   await sset(K.mtime,JSON.stringify(S.mtime)); await sset(K.mtimes,JSON.stringify(S.mtimes));
   await sset(K.sync,JSON.stringify(S.sync));
   await saveMeta();
@@ -1456,8 +1552,10 @@ async function reloadTexts(){
   S.log=parseObj(await sget(K.log),S.log);
   S.kanji=parseObj(await sget(K.kanji),S.kanji);
   S.life=parseObj(await sget(K.life),S.life);
+  S.gone=parseObj(await sget(K.gone),S.gone);
   S.mtime=parseObj(await sget(K.mtime),S.mtime);
   S.mtimes=parseObj(await sget(K.mtimes),S.mtimes);
+  applyGone();
   var a=document.activeElement;
   /* человек печатает — экран не дёргаем, данные уже верные */
   if(a&&(a.tagName==="TEXTAREA"||a.tagName==="INPUT")) return;
@@ -1495,8 +1593,10 @@ async function loadAll(){
   S.log=parseObj(await sget(K.log),S.log);
   S.kanji=parseObj(await sget(K.kanji),S.kanji);
   S.life=parseObj(await sget(K.life),S.life);
+  S.gone=parseObj(await sget(K.gone),S.gone);
   S.mtime=parseObj(await sget(K.mtime),S.mtime);
   var mts=await sget(K.mtimes); if(mts) try{ S.mtimes=JSON.parse(mts)||{}; }catch(x){}
+  applyGone();
   buildIndex();
   return S.cards.length>0;
 }
@@ -1655,21 +1755,39 @@ function kanjiRow(word){
   for(var i=0;i<kj.length;i++){
     if(seen[kj[i]]) continue; seen[kj[i]]=1;
     out.push('<button class="kj'+(hasKanji(kj[i])?" filled":"")+'" data-kanji="'+esc(kj[i])+
-      '" lang="ja" title="разобрать знак">'+esc(kj[i])+'</button>');
+      '" lang="ja" title="разобрать кандзи">'+esc(kj[i])+'</button>');
   }
   if(!out.length) return "";
-  return '<div class="kjrow"><span class="kjlab">знаки</span>'+out.join("")+'</div>';
+  return '<div class="kjrow"><span class="kjlab">кандзи</span>'+out.join("")+'</div>';
 }
 var kSheetT=null;
 var KFIELDS=[
-  { k:"m", lab:"значение",                ph:"что этот знак значит",                              rows:2 },
+  { k:"m", lab:"значение",                ph:"что этот кандзи значит",                              rows:2 },
   { k:"y", lab:"чтения",                  ph:"он: … кун: …",                                      rows:2 },
   { k:"r", lab:"радикалы и их значения",  ph:"из каких частей состоит и что значит каждая",       rows:3 },
-  { k:"e", lab:"этимология",              ph:"откуда знак взялся, что изображал вначале",         rows:3, prose:true },
+  { k:"e", lab:"этимология",              ph:"откуда кандзи взялся, что изображал вначале",         rows:3, prose:true },
   { k:"s", lab:"история",                 ph:"что про него любопытно",                            rows:3, prose:true },
   { k:"n", lab:"мнемоника",               ph:"за что зацепиться, чтобы не путать с соседями",     rows:3, prose:true },
   { k:"w", lab:"как писать",              ph:"порядок черт словами: сначала …, потом …",          rows:3 }
 ];
+/* Правка разбора кандзи одна на все места, откуда её открывают: окно кандзи
+   и урок по кандзи пишут в одно и то же и одинаково. */
+function kanjiEditFold(ch){
+  var d=kanjiOf(ch);
+  return foldHTML("изменить",'<div class="fgrid">'+KFIELDS.map(function(f){
+    return '<div class="f'+(f.prose?" long":"")+'"><label>'+esc(f.lab)+'</label>'+
+      '<textarea rows="'+f.rows+'" data-kf="'+f.k+'" placeholder="'+esc(f.ph)+'">'+esc(d[f.k]||"")+'</textarea></div>';
+  }).join("")+'</div>');
+}
+function setKanjiField(ch,key,val){
+  var o=S.kanji[ch]||{}, v=String(val==null?"":val).trim();
+  if(v) o[key]=v; else delete o[key];
+  if(Object.keys(o).length) S.kanji[ch]=o; else delete S.kanji[ch];
+  touch(ch,"kanji"); markKanji(ch); saveSoon();
+  /* экран кандзи стоит за окном — освежаем его без спешки, чтобы не дёргать на каждой букве */
+  clearTimeout(kSheetT);
+  kSheetT=setTimeout(function(){ if(!$("#ksheet").hidden) renderKanjiSheet(); },600);
+}
 function openKanji(ch){
   var d=kanjiOf(ch), words=kanjiWords(ch), load=Math.round(kanjiLoad(ch));
   var wlist=words.slice(0,80).map(function(c){
@@ -1689,33 +1807,24 @@ function openKanji(ch){
       (canSpeak()?sayBtn(ch):"")+
     '</div>'+
     (d.r?foldHTML("радикалы и их значения",esc(d.r),"",true):"")+
-    (d.e?foldHTML("этимология",prose(d.e),"prose",true):"")+
-    (d.n?foldHTML("мнемоника",prose(d.n),"prose",true):"")+
-    (d.s?foldHTML("история",prose(d.s),"prose",false):"")+
+    (d.e?proseFold("этимология",d.e,true):"")+
+    (d.n?proseFold("мнемоника",d.n,true):"")+
+    (d.s?proseFold("история",d.s,false):"")+
     (d.w?foldHTML("как писать",esc(d.w),"",false):"")+
     (words.length
       ? '<div class="kjwords"><p class="subhead">где он мне мешает</p><div class="kjwrap">'+wlist+'</div>'+
         (words.length>80?'<p class="note">показаны первые 80 из '+words.length+'</p>':"")+
         '<p class="note">число справа — сколько раз слово провалено. Нажмите на слово, чтобы перейти к нему.</p></div>'
-      : '<p class="note" style="margin-top:14px">В колоде нет слов с этим знаком.</p>')+
+      : '<p class="note" style="margin-top:14px">В колоде нет слов с этим кандзи.</p>')+
     (!(d.m||d.e||d.n||d.r)
-      ? '<p class="note" style="margin-top:14px">Разбора знака ещё нет — напишите свой ниже '+
+      ? '<p class="note" style="margin-top:14px">Разбора кандзи ещё нет — напишите свой ниже '+
         'или соберите готовые: ⋯ → Задание по кандзи.</p>' : "")+
-    foldHTML("изменить",'<div class="fgrid">'+KFIELDS.map(function(f){
-      return '<div class="f'+(f.prose?" long":"")+'"><label>'+esc(f.lab)+'</label>'+
-        '<textarea rows="'+f.rows+'" data-kf="'+f.k+'" placeholder="'+esc(f.ph)+'">'+esc(d[f.k]||"")+'</textarea></div>';
-    }).join("")+'</div>');
+    kanjiEditFold(ch);
 
-  openModal("Знак "+ch, "", body);
+  openModal("Кандзи "+ch, "", body);
   $("#modalBody").oninput=function(e){
     var t=e.target.closest("[data-kf]"); if(!t) return;
-    var o=S.kanji[ch]||{}, v=t.value.trim();
-    if(v) o[t.dataset.kf]=v; else delete o[t.dataset.kf];
-    if(Object.keys(o).length) S.kanji[ch]=o; else delete S.kanji[ch];
-    touch(ch,"kanji"); markKanji(ch); saveSoon();
-    /* экран знаков стоит за окном — освежаем его без спешки, чтобы не дёргать на каждой букве */
-    clearTimeout(kSheetT);
-    kSheetT=setTimeout(function(){ if(!$("#ksheet").hidden) renderKanjiSheet(); },600);
+    setKanjiField(ch,t.dataset.kf,t.value);
   };
   $("#modalBody").onclick=function(e){
     var g=e.target.closest("[data-kgo]"); if(!g) return;
@@ -1763,15 +1872,18 @@ function renderKanjiSheet(){
       '<span class="w">'+Math.round(L.w[ch]||0)+'</span>'+
       '<span class="m">'+(d.m?esc(d.m):скл(n,"слово","слова","слов"))+'</span></button>';
   }).join("");
-  if(!show.length) html='<p class="kempty">'+(q?"По этому запросу знаков нет.":"Здесь пусто.")+'</p>';
+  if(!show.length) html='<p class="kempty">'+(q?"По этому запросу кандзи нет.":"Здесь пусто.")+'</p>';
   var g=$("#kGrid"), sc=g.scrollTop;
   g.innerHTML=html; g.scrollTop=sc;
-  $("#kStat").textContent="знаков "+all.length+" · разобрано "+done+
+  var p=kplanCounts();
+  $("#kStat").textContent="кандзи "+all.length+" · разобрано "+done+
+    (p.кповтору?" · к повтору "+p.кповтору:"")+
     (list.length!==all.length?" · показано "+list.length:"");
 }
 function openKanjiSheet(){
   if(!S.cards.length){ toast("Сначала загрузите card_summary.csv"); return; }
   S.kview.L=kanjiLoads();
+  if(kassign()) saveSoon();          /* разобранные кандзи попадают в план сами */
   $("#ksheet").hidden=false; document.body.style.overflow="hidden";
   renderKanjiSheet();
 }
@@ -1796,33 +1908,160 @@ $("#kChips").addEventListener("click",function(e){
   renderKanjiSheet();
 });
 
-/* ---------- задание по знакам ---------- */
+/* ---------- уроки по кандзи ----------
+
+   Те же уроки, что и по словам, и по тем же правилам: разбивка закреплена,
+   порядок внутри урока каждый раз новый, три кнопки назначают, когда кандзи
+   вернётся. Спрашиваем в ту сторону, в которую в колоде не спрашивают
+   никогда: знак есть, значение вспоминаете вы.
+
+   В уроки идут только разобранные кандзи — спрашивать значение, которого
+   нигде не записано, не у чего. Разберите их через ⋯ → Задание по кандзи
+   или руками, и они появятся в плане сами. */
+function kanjiReady(ch){ var d=S.kanji[ch]; return !!(d&&d.m); }
+function kanjiDeck(){
+  var L=S.kview.L||kanjiLoads(), all=Object.keys(L.w);
+  all.sort(function(a,b){ return (L.w[b]||0)-(L.w[a]||0); });
+  return all;
+}
+function kassign(){
+  var size=lessonSize(), used={}, maxN=0;
+  Object.keys(S.lesson).forEach(function(k){
+    if(!isKanjiKey(k)) return;
+    var ln=S.lesson[k];
+    if(ln>0){ used[ln]=(used[ln]||0)+1; if(ln>maxN) maxN=ln; }
+  });
+  var free=kanjiDeck().filter(function(ch){ return kanjiReady(ch)&&!(S.lesson[ch]>0); });
+  if(!free.length) return 0;
+  var num=1, added=0;
+  for(var i=0;i<free.length;i++){
+    while(num<=maxN&&(used[num]||0)>=size) num++;
+    if(num>maxN) maxN=num;
+    S.lesson[free[i]]=num; touchLesson(free[i]);
+    used[num]=(used[num]||0)+1; added++;
+  }
+  return added;
+}
+function klessonsList(){
+  var by={};
+  kanjiDeck().forEach(function(ch){
+    var ln=S.lesson[ch];
+    if(!(ln>0)||!kanjiReady(ch)) return;
+    if(!by[ln]) by[ln]={ n:ln, list:[], новых:0, кповтору:0, готово:0 };
+    by[ln].list.push(ch);
+    if(!S.srs[ch]) by[ln].новых++;
+    else if(dueIn(ch)<=0) by[ln].кповтору++;
+    else by[ln].готово++;
+  });
+  return Object.keys(by).map(function(k){ return by[k]; }).sort(function(a,b){ return a.n-b.n; });
+}
+function kplanCounts(){
+  var novel=0, due=0, all=0, ready=0;
+  kanjiDeck().forEach(function(ch){
+    if(!kanjiReady(ch)) return;
+    ready++;
+    if(!(S.lesson[ch]>0)) return;
+    all++;
+    if(!S.srs[ch]) novel++; else if(isDue(ch)) due++;
+  });
+  return { новых:novel, кповтору:due, всего:all, разобрано:ready };
+}
+function dueKanji(){
+  var out=kanjiDeck().filter(function(ch){ return kanjiReady(ch)&&S.srs[ch]&&isDue(ch); });
+  out.sort(function(a,b){ return S.srs[a].d-S.srs[b].d; });
+  return out;
+}
+function startKLesson(num){
+  var l=klessonsList().filter(function(x){ return x.n===num; })[0];
+  var list=l?перемешать(l.list.slice()):[];
+  if(!list.length){ toast("Урок пуст"); return; }
+  closeModal();
+  S.drill={ list:list, i:0, mode:"learn", lesson:num, shown:false, done:0, kanji:true };
+  $("#drill").hidden=false; document.body.style.overflow="hidden"; renderDrill();
+}
+function startKDue(){
+  var list=dueKanji();
+  if(!list.length){ toast("Кандзи к повтору сегодня нет"); return; }
+  closeModal();
+  S.drill={ list:list, i:0, mode:"learn", lesson:0, shown:false, done:0, kanji:true };
+  $("#drill").hidden=false; document.body.style.overflow="hidden"; renderDrill();
+}
+function openKPlan(){
+  kassign();
+  var list=klessonsList(), p=kplanCounts(), size=lessonSize();
+  var closed=0;
+  list.forEach(function(l){ if(l.готово===l.list.length) closed++; });
+  var неразобрано=kanjiDeck().length-p.разобрано;
+  var body=
+    '<div class="planTop">'+
+      '<div class="planNum"><b>'+p.новых+'</b>новых</div>'+
+      '<div class="planNum"><b>'+p.кповтору+'</b>к повтору</div>'+
+      '<div class="planNum"><b>'+closed+' / '+list.length+'</b>уроков закрыто</div>'+
+    '</div>'+
+    '<div class="acts">'+
+      (p.кповтору?'<button class="btn primary big" id="kGoDue">Повторить '+p.кповтору+'</button>':"")+
+      (p.новых?'<button class="btn'+(p.кповтору?"":" primary big")+'" id="kGoNext">Следующий урок</button>':"")+
+      (!p.новых&&!p.кповтору?'<p class="note" style="margin:0">'+
+        (p.всего?"На сегодня всё пройдено. Возвращайтесь завтра — или откройте любой урок ниже."
+                :"Пока не по чему заниматься: у кандзи ещё нет разборов. Соберите их — ⋯ → Задание по кандзи — и они появятся тут сами.")+
+        '</p>':"")+
+    '</div>'+
+    '<div class="lessons">'+list.map(function(l){
+      var done=l.готово, all=l.list.length, pct=Math.round(done/all*100);
+      var state=done===all?"закрыт":(l.новых===all?"не начат":"в работе");
+      return '<button class="lesson'+(done===all?" done":"")+'" data-klesson="'+l.n+'">'+
+        '<span class="lnum">'+l.n+'</span>'+
+        '<span class="lmain"><span class="ltitle">Урок '+l.n+'<span class="lstate">'+state+'</span></span>'+
+        '<span class="lbar"><i style="width:'+pct+'%"></i></span>'+
+        '<span class="lsub">'+all+' кандзи'+
+          (l.кповтору?' · '+l.кповтору+' к повтору':"")+
+          (l.новых&&l.новых<all?' · '+l.новых+' новых':"")+'</span></span>'+
+        '<span class="lword" lang="ja">'+esc(l.list.slice(0,3).join(""))+'</span></button>';
+    }).join("")+'</div>'+
+    '<p class="note" style="margin-top:12px">Спрашивается значение по кандзи — в колоде вы его так '+
+      'никогда не вспоминаете. Размер урока общий со словами: он меняется в «Уроки».'+
+      (неразобрано?' Ещё '+скл(неразобрано,"кандзи ждёт","кандзи ждут","кандзи ждут")+' разбора — они в план пока не идут.':"")+'</p>';
+  openModal("Уроки по кандзи", p.разобрано+" разобранных кандзи в плане", body);
+  $("#modalBody").onclick=function(e){
+    var l=e.target.closest("[data-klesson]"); if(l){ startKLesson(+l.dataset.klesson); return; }
+  };
+  var d=$("#kGoDue"); if(d) d.onclick=startKDue;
+  var g=$("#kGoNext"); if(g) g.onclick=function(){
+    var first=null;
+    klessonsList().forEach(function(l){ if(!first&&l.новых) first=l.n; });
+    if(first) startKLesson(first); else toast("Новых уроков нет");
+  };
+}
+$("#kLearnBtn").onclick=openKPlan;
+
+/* ---------- задание по кандзи ---------- */
 var KPROMPT =
-"Ниже JSON-массив японских кандзи из моей колоды Anki. Они отсортированы по важности: чем выше,\n"+
-"тем больше слов с этим знаком я проваливаю. В поле \"words_in_deck\" — слова из моей колоды с этим знаком.\n\n"+
-"Для каждого объекта заполни поля на русском языке.\n\n"+
-"\"meaning\" — значение знака: одно-три слова, самое основное. 10–60 символов.\n\n"+
-"\"readings\" — чтения: строкой вида «он: ヨウ · кун: あつか-う». Только те, что реально употребимы.\n\n"+
-"\"radicals\" — из каких частей состоит знак. Каждую часть с новой строки в виде:\n"+
-"«亻 — человек (стоит слева)». Если часть работает как фонетик, так и пометь. 100–400 символов.\n\n"+
-"\"etymology\" — откуда знак взялся: что изображала древняя форма, как значение доехало до нынешнего.\n"+
-"Если знак поздний или составлен искусственно — так и напиши. 200–600 символов.\n\n"+
-"\"story\" — одна интересная правдивая запись про знак: где он заметно встречается, спор о нём,\n"+
-"разница с китайским или старым начертанием, бытовая деталь. Не пересказывай этимологию. 150–500 символов.\n\n"+
-"\"mnemonic\" — за что зацепиться, чтобы не путать его с похожими знаками. Опирайся на разбор по частям\n"+
-"из \"radicals\", а не на выдуманную картинку. Назови 1–2 знака, с которыми его легко спутать,\n"+
-"и скажи, чем они отличаются на вид. 150–400 символов.\n\n"+
-"\"writing\" — порядок черт словами, по шагам: «1) горизонтальная сверху; 2) …». Сколько всего черт — в конце.\n"+
-"Без картинок и без ссылок. 100–400 символов.\n\n"+
+"Ниже JSON-массив японских кандзи из моей колоды Anki, по важности сверху вниз.\n"+
+"В поле \"words_in_deck\" — слова из моей колоды с этим кандзи.\n\n"+
+"Заполни поля на русском. Указанные размеры — потолок, а не цель: короче можно и нужно,\n"+
+"длиннее нельзя.\n\n"+
+"\"meaning\" — одно-три слова, самое основное. До 60 символов.\n\n"+
+"\"readings\" — строкой вида «он: ヨウ · кун: あつか-う». Только реально употребимые.\n\n"+
+"\"radicals\" — части кандзи, каждая с новой строки: «亻 — человек (слева)».\n"+
+"Фонетик так и помечай. До 200 символов.\n\n"+
+"\"etymology\" — что изображала древняя форма и как дошло до нынешнего значения.\n"+
+"Поздний или составлен искусственно — так и напиши. До 250 символов.\n\n"+
+"\"story\" — один факт, не пересказ этимологии. До 200 символов.\n"+
+"Нечего сказать — оставь пустую строку, а не выдумку и не отписку.\n\n"+
+"\"mnemonic\" — за что зацепиться, чтобы не путать с похожими. Опирайся на разбор из \"radicals\",\n"+
+"а не на выдуманную картинку: назови 1–2 похожих кандзи и чем они отличаются на вид. До 200 символов.\n\n"+
+"\"writing\" — порядок черт по шагам: «1) горизонтальная сверху; 2) …», в конце общее число черт.\n"+
+"Без картинок и ссылок. До 250 символов.\n\n"+
 "Правила:\n"+
-"- Только проверяемые факты. Народную этимологию помечай как народную.\n"+
-"- Если надёжных данных нет — так и напиши, не выдумывай.\n"+
+"- Только проверяемые факты. Народную этимологию помечай как народную; нет надёжных данных — так и напиши.\n"+
+"- Без вступлений, выводов, вежливости и оборотов вроде «стоит отметить», «интересно, что».\n"+
+"  Первое слово — сразу по делу.\n"+
 "- Не меняй \"kanji\" и \"words_in_deck\", не переставляй и не добавляй объекты.\n"+
-"- Верни ровно тот же JSON-массив целиком.\n\n"+
-"Оформление текста внутри полей (важно, я это читаю с телефона):\n"+
-"- Дели на смысловые абзацы, между абзацами пустая строка (\\n\\n).\n"+
-"- Ключевые слова и сами японские знаки оборачивай в двойные звёздочки: **фонетик**, **扱**.\n"+
-"- Никаких заголовков решётками, таблиц и нумерованных списков, кроме \"writing\".\n";
+"- Верни ровно тот же JSON-массив целиком, без текста до и после него.\n\n"+
+"Оформление внутри полей (читаю с телефона):\n"+
+"- Между абзацами пустая строка (\\n\\n).\n"+
+"- Ключевые слова и японские кандзи — в двойных звёздочках: **фонетик**, **扱**.\n"+
+"- Никаких заголовков, таблиц и нумерованных списков, кроме \"writing\".\n";
 
 /* Те же названные наборы, что и у карточек: галочка «и уже разобранные»
    не говорила, что снятая галочка молча выбрасывает знаки сверху списка. */
@@ -1831,7 +2070,7 @@ var KTASKSETS=[
     ok:function(ch){ return !hasKanji(ch); } },
   { k:"redo", lab:"Переделать", hint:"только те, что уже разобраны — заберём их заново",
     ok:function(ch){ return hasKanji(ch); } },
-  { k:"all",  lab:"Все подряд", hint:"все знаки отсюда, без отбора",
+  { k:"all",  lab:"Все подряд", hint:"все кандзи отсюда, без отбора",
     ok:function(){ return true; } }
 ];
 function kTaskSet(k){
@@ -1869,8 +2108,8 @@ function openKanjiTask(allDeck){
     if(alt) S.kTaskSet=alt.k;
   }
 
-  openModal("Задание по кандзи","знаки идут от самых мешающих к остальным",
-    '<p class="note">Разобрано знаков: '+есть+'.</p>'+
+  openModal("Задание по кандзи","кандзи идут от самых мешающих к остальным",
+    '<p class="note">Разобрано кандзи: '+есть+'.</p>'+
     '<div class="setrow"><span class="lab">откуда</span>'+
       picks("kAll",[{v:0,lab:"из списка",n:сколько(false,S.kTaskSet)},
                     {v:1,lab:"вся колода",n:сколько(true,S.kTaskSet)}],S.kTaskAll?1:0)+'</div>'+
@@ -1884,7 +2123,7 @@ function openKanjiTask(allDeck){
       '<button class="btn" id="kCsv">CSV</button>'+
       '<button class="btn ghost" id="kPrompt">Копировать промпт</button></div>'+
     '<p class="note" style="margin-top:10px">Ответ нейросети перетащите обратно в приложение — '+
-      'разборы знаков разойдутся по знакам сами. Знак открывается нажатием на него '+
+      'разборы разойдутся по кандзи сами. Кандзи открывается нажатием на него '+
       'в раскрытой карточке или в уроке.</p>'+
     '<div class="chunk"><textarea id="kPromptBox" readonly>'+esc(KPROMPT)+'</textarea></div>');
 
@@ -1895,9 +2134,9 @@ function openKanjiTask(allDeck){
     numMax("kN",pool.length);
     var h;
     if(!list.length){
-      h='<span class="warn">Выгружать нечего:</span> здесь нет знаков набора «'+esc(t.lab)+'».';
+      h='<span class="warn">Выгружать нечего:</span> здесь нет кандзи набора «'+esc(t.lab)+'».';
     }else{
-      h='В файл уйдёт <b>'+list.length+'</b> '+plural(list.length,"знак","знака","знаков")+
+      h='В файл уйдёт <b>'+list.length+'</b> кандзи'+
         (pool.length>list.length?' из '+pool.length+' подходящих':'')+
         ', начиная с <b>'+esc(list[0])+'</b>.';
       var head=list.slice(0,18);
@@ -1934,7 +2173,7 @@ function openKanjiTask(allDeck){
   $("#kJson").onclick=function(){
     var list=take(); if(!list.length) return;
     download("kanji_task_"+list.length+".json",JSON.stringify(kanjiTaskRows(list),null,1),"application/json");
-    toast("Выгружено знаков: "+list.length);
+    toast("Выгружено кандзи: "+list.length);
   };
   $("#kCsv").onclick=function(){
     var list=take(); if(!list.length) return;
@@ -1943,13 +2182,13 @@ function openKanjiTask(allDeck){
     var lines=[cols.join(",")];
     rows.forEach(function(r){ lines.push(cols.map(function(k){ return csvCell(r[k]); }).join(",")); });
     download("kanji_task_"+rows.length+".csv",lines.join("\n"));
-    toast("Выгружено знаков: "+rows.length);
+    toast("Выгружено кандзи: "+rows.length);
   };
   $("#kPrompt").onclick=function(){ copy(KPROMPT); };
 }
 /* ответ нейросети про знаки: раскладываем по знакам, чужого не трогаем */
 function mergeKanji(rows,cols){
-  var cK=pick(cols,["kanji","знак","иероглиф"]);
+  var cK=pick(cols,["kanji","кандзи","знак","иероглиф"]);
   if(!cK) return { ok:0, miss:0 };
   var map={ m:["meaning","значение"], y:["readings","чтения","reading"],
             r:["radicals","радикалы","радикал"], e:["etymology","этимология"],
@@ -2035,8 +2274,8 @@ function renderChips(){
 }
 function rowHTML(c,i){
   var col=colorOf(c), read=byLabel(c,"чтение");
-  return '<button class="row'+(i===S.cursor?" cursor":"")+'" data-i="'+i+'" style="--c:'+col+'">'+
-    '<span class="bar"></span><span class="tier">'+tierOf(c)+'</span>'+
+  return '<button class="row'+(i===S.cursor?" cursor":"")+(S.sel[c.id]?" picked":"")+'" data-i="'+i+'" style="--c:'+col+'">'+
+    '<span class="bar"></span><span class="pick">✓</span><span class="tier">'+tierOf(c)+'</span>'+
     '<span class="main"><span class="term" lang="ja"><span class="wordtxt">'+
       kanjiSpans(mainText(c).slice(0,60))+'</span>'+
       (read?'<span class="read">'+esc(read)+'</span>':"")+
@@ -2048,6 +2287,24 @@ function foldHTML(title,body,cls,open){
   return '<details class="fold"'+(open?" open":"")+'><summary>'+esc(title)+'</summary>'+
     '<div class="body'+(cls?" "+cls:"")+'">'+body+'</div></details>';
 }
+/* Разборы, уже лежащие в колоде, короче не станут — их писала нейросеть,
+   когда её ещё просили писать длинно. Поэтому режем на показ: видно начало,
+   остальное — по кнопке. Порог примерно с экран телефона: всё, что короче,
+   и так помещается целиком и кнопку не получает. */
+var PROSE_CLAMP=420;
+function proseFold(title,text,open){
+  var длинный=String(text||"").length>PROSE_CLAMP;
+  return '<details class="fold"'+(open?" open":"")+'><summary>'+esc(title)+'</summary>'+
+    '<div class="body prose'+(длинный?" short":"")+'">'+prose(text)+'</div>'+
+    (длинный?'<button class="moreTxt" type="button">показать целиком</button>':"")+
+    '</details>';
+}
+document.addEventListener("click",function(e){
+  var b=e.target.closest(".moreTxt"); if(!b) return;
+  e.preventDefault(); e.stopPropagation();
+  var body=b.parentNode.querySelector(".body.prose"); if(!body) return;
+  b.textContent=body.classList.toggle("short")?"показать целиком":"свернуть";
+});
 function dictFolds(c,openMain){
   var jp=dictOf(c,"jp"), en=dictOf(c,"en"), h="";
   if(jp) h+=foldHTML("словарь 国語 (JP→JP)",'<span lang="ja">'+esc(jp)+'</span>',"",openMain);
@@ -2106,14 +2363,26 @@ function editorHTML(c){
       (S.sent[c.id]?'<span>выгружено '+esc(S.sent[c.id])+'</span>':"")+
       (canSpeak()?'<span class="grow"></span>'+sayBtn(mainText(c)):"")+'</div>'+
     kanjiRow(mainText(c))+
-    (et?foldHTML("разбор и происхождение",prose(et),"prose",true):"")+
-    (st?foldHTML("интересное",prose(st),"prose",true):"")+
+    (et?proseFold("разбор и происхождение",et,true):"")+
+    (st?proseFold("интересное",st,true):"")+
     dictFolds(c,!et)+simFold(c)+editFold(c)+
     '<div class="acts">'+
       '<button class="btn" data-act="done">'+(S.status[c.id]==="done"?"Снять отметку":"Проработал")+'</button>'+
+      forgetBtn(c.id)+
       '<button class="btn ghost" data-act="drill">Читать отсюда</button>'+
       (isEdited(c)?'<button class="btn ghost" data-act="revert">Вернуть исходный текст</button>':"")+
-      '<span class="grow"></span><button class="btn ghost" data-act="close">Свернуть</button></div></div>';
+      '<span class="grow"></span>'+
+      '<button class="btn ghost danger" data-act="del" title="убрать карточку отсюда совсем">Удалить</button>'+
+      '<button class="btn ghost" data-act="close">Свернуть</button></div></div>';
+}
+/* «Забыть» стоит на самой карточке: решение сбросить слово приходит, когда
+   смотришь на него, а не когда открываешь меню. Подпись говорит, что именно
+   потеряется — срок следующего показа. */
+function forgetBtn(id){
+  var st=S.srs[id], есть=!!st||S.status[id]!=null;
+  return '<button class="btn" data-act="forget"'+(есть?"":" disabled")+
+    ' title="снять расписание — слово снова станет новым">Забыть'+
+    (st?'<small>вернулось бы '+esc(afterText(dueIn(id)))+'</small>':"")+'</button>';
 }
 /* пустой экран: без карточек «ничего не подошло» звучит как поломка,
    хотя на деле не хватает только выгрузки статистики */
@@ -2141,7 +2410,7 @@ function renderAll(){
   $("#intake").hidden=S.cards.length>0;
   $("#controls").hidden=!S.cards.length;
   $("#sort").value=S.sort;
-  renderHead(); renderChips(); renderList(); renderPlanBtn();
+  renderHead(); renderChips(); renderList(); renderPlanBtn(); renderSel();
   if(!$("#ksheet").hidden) renderKanjiSheet();
 }
 
@@ -2150,7 +2419,11 @@ function startDrill(list,i){
   if(!list.length){ toast("Список пуст"); return; }
   S.drill={list:list,i:i||0}; $("#drill").hidden=false; document.body.style.overflow="hidden"; renderDrill();
 }
-function exitDrill(){ S.drill=null; $("#drill").hidden=true; document.body.style.overflow=""; renderAll(); }
+/* Урок по кандзи открывают с экрана кандзи, и он остаётся стоять за уроком:
+   выходя, прокрутку страницы возвращаем только если под нами правда список. */
+function exitDrill(){ S.drill=null; $("#drill").hidden=true;
+  document.body.style.overflow=$("#ksheet").hidden?"":"hidden";
+  renderAll(); }
 /* Обратная сторона. В Anki слово всегда узнаёшь и никогда не производишь —
    поэтому оно «знакомое», но не своё. Раз в три повтора спрашиваем наоборот:
    показываем разбор и просим вспомнить само слово. Чередование считается от
@@ -2171,8 +2444,8 @@ function maskWord(text,word){
 function backHint(c){
   var et=etymOf(c), st=storyOf(c), en=dictOf(c,"en"), ex=exampleText(c), w=mainText(c);
   var h="";
-  if(et) h+=foldHTML("разбор и происхождение",prose(maskWord(et,w)),"prose",true);
-  if(st) h+=foldHTML("интересное",prose(maskWord(st,w)),"prose",!et);
+  if(et) h+=proseFold("разбор и происхождение",maskWord(et,w),true);
+  if(st) h+=proseFold("интересное",maskWord(st,w),!et);
   if(!et&&!st&&en) h+=foldHTML("перевод (JP→EN)",'<span lang="ja">'+esc(maskWord(en,w))+'</span>',"",true);
   if(ex) h+='<div class="drillSent" lang="ja">'+esc(maskWord(ex,w))+'</div>';
   return h;
@@ -2301,13 +2574,52 @@ function undoGrade(){
   S.sync.dirty=true;
   saveSoon(); renderDrill(); $("#drillBody").scrollTop=0;
   var c=S._byId[u.id];
-  toast("Отменено: "+(c?mainText(c):"ответ"),1600);
+  toast("Отменено: "+(c?mainText(c):(isKanjiKey(u.id)?u.id:"ответ")),1600);
 }
 $("#drillUndo").onclick=undoGrade;
 
+/* Урок по кандзи. Показываем знак, прячем всё остальное: вспоминать надо
+   значение, а оно в колоде никогда не спрашивается — там знак только узнают. */
+function renderKDrill(){
+  var d=S.drill, ch=d.list[d.i], k=kanjiOf(ch), hide=!d.shown, words=kanjiWords(ch);
+  var осталось=d.list.length-d.i;
+  $("#drillPos").textContent=(d.i>=Math.floor(d.list.length/2)&&осталось>1)
+    ? "осталось "+осталось
+    : "кандзи · "+(d.lesson?"урок "+d.lesson+" · ":"повтор · ")+(d.i+1)+" / "+d.list.length;
+  $("#drillFill").style.width=((d.i+1)/d.list.length*100)+"%";
+  $("#drillUndo").hidden=!canUndo();
+  $("#drillRead").hidden=true; $("#drillLearn").hidden=false;
+  $("#drillShow").textContent="Показать значение";
+  $("#drillShow").hidden=d.shown;
+  $("#drillGrades").hidden=!d.shown;
+  if(d.shown){ var pr=gradePreview(ch);
+    $("#gs0").textContent=pr[0]; $("#gs1").textContent=pr[1]; $("#gs2").textContent=pr[2]; }
+  $("#drillBody").innerHTML=
+    '<div class="drillKanji" lang="ja">'+esc(ch)+'</div>'+
+    (hide
+      ? '<p class="note" style="text-align:center;margin-top:16px">Вспомните значение и чтения.</p>'
+      : '<div class="drillMean">'+(k.m?esc(k.m):"значение не записано")+'</div>'+
+        (k.y?'<div class="drillKread" lang="ja">'+esc(k.y)+'</div>':"")+
+        (canSpeak()?'<div style="text-align:center;margin-top:10px">'+sayBtn(ch)+'</div>':"")+
+        '<div class="drillStats"><span>в колоде '+скл(words.length,"слово","слова","слов")+'</span>'+
+          (S.srs[ch]?'<span>повторов '+(S.srs[ch].r||0)+'</span>':"")+'</div>'+
+        (k.r?foldHTML("радикалы и их значения",esc(k.r),"",true):"")+
+        (k.n?proseFold("мнемоника",k.n,true):"")+
+        (k.e?proseFold("этимология",k.e,false):"")+
+        (k.s?proseFold("интересное",k.s,false):"")+
+        (k.w?foldHTML("как писать",esc(k.w),"",false):"")+
+        (words.length
+          ? '<div class="kjwords"><p class="subhead">где он мне мешает</p><div class="kjwrap">'+
+            words.slice(0,40).map(function(c){
+              return '<span class="kjword" lang="ja">'+esc(mainText(c).slice(0,20))+
+                '<span class="n">'+c.a+'</span></span>'; }).join("")+'</div></div>'
+          : "")+
+        kanjiEditFold(ch));
+}
 function renderDrill(){
   var d=S.drill; if(!d) return;
   if(d.i<0) d.i=0; if(d.i>=d.list.length) d.i=d.list.length-1;
+  if(d.kanji) return renderKDrill();
   var c=d.list[d.i], read=byLabel(c,"чтение"), ex=exampleText(c), et=etymOf(c), st=storyOf(c);
   var learn=d.mode==="learn", hide=learn&&!d.shown, back=learn&&isBack(c);
   /* ближе к концу считаем не пройденное, а остаток: к цели идут быстрее,
@@ -2337,8 +2649,8 @@ function renderDrill(){
     (hide?"":'<div class="drillStats"><span>важность '+tierOf(c)+'</span><span>'+c.a+' Again из '+c.n+'</span>'+
       '<span>'+fmtTime(c.t)+'</span>'+(learn&&S.srs[c.id]?'<span>повторов '+(S.srs[c.id].r||0)+'</span>':"")+'</div>')+
     (hide?"":
-      (et?foldHTML("разбор и происхождение",prose(et),"prose",learn):"")+
-      (st?foldHTML("интересное",prose(st),"prose",learn):"")+
+      (et?proseFold("разбор и происхождение",et,learn):"")+
+      (st?proseFold("интересное",st,learn):"")+
       (!et&&!st?'<p class="note" style="margin-top:16px">Разбора пока нет — напишите свою зацепку ниже. '+
         'Или соберите готовые: ⋯ → Задание для нейросети.</p>':"")+
       dictFolds(c,false)+simFold(c)+editFold(c));
@@ -2359,6 +2671,7 @@ var LP={ t:null, x:0, y:0, fired:false };
 function lpCancel(){ if(LP.t){ clearTimeout(LP.t); LP.t=null; } }
 $("#list").addEventListener("pointerdown",function(e){
   LP.fired=false; lpCancel();
+  if(S.picking) return;                     /* сейчас строку отмечают, а не читают */
   var t=e.target.closest(".row [data-kanji]"); if(!t) return;
   LP.x=e.clientX; LP.y=e.clientY;
   LP.t=setTimeout(function(){
@@ -2386,11 +2699,22 @@ $("#list").addEventListener("click",function(e){
       saveSoon(); renderHead(); renderChips(); renderList(); }
     if(act==="revert"){ delete S.edits[card.note]; saveSoon(); renderList(); toast("Текст возвращён"); }
     if(act==="drill"){ var pos=0; S._vis.forEach(function(x,i){ if(x.id===cid) pos=i; }); startDrill(S._vis,pos); }
+    if(act==="forget"){
+      if(!forgetIds([cid])){ toast("У этой карточки и так нет расписания"); return; }
+      renderHead(); renderChips(); renderList();
+      toast("Забыто: "+(card?mainText(card):"карточка")+" — снова новая",2600);
+    }
+    if(act==="del") askDelete([cid]);
     if(act==="close"){ S.open=null; renderList(); }
     return;
   }
   var row=e.target.closest(".row"); if(!row) return;
   var c=S._vis[+row.dataset.i]; S.cursor=+row.dataset.i;
+  if(S.picking){
+    if(S.sel[c.id]) delete S.sel[c.id]; else S.sel[c.id]=1;
+    row.classList.toggle("picked",!!S.sel[c.id]);
+    renderSel(); return;
+  }
   S.open=(S.open===c.id)?null:c.id; renderList();
 });
 function jumpTo(id){
@@ -2401,11 +2725,118 @@ function jumpTo(id){
   renderList();
   var el=document.querySelector('.editor[data-ed="'+id+'"]'); if(el) el.scrollIntoView({block:"center"});
 }
+/* ---------- забыть и удалить ----------
+
+   «Забыть» — то же, что Forget в Anki: карточка снова становится новой
+   и проходит шаги обучения заново. Снимается только расписание и отметка
+   «проработано»; разбор, заметка и различия остаются — забывают слово,
+   а не работу над ним. Кнопка стоит на самой карточке и в полосе выбора:
+   решение сбросить приходит, когда слово перед глазами.
+
+   «Удалить» убирает карточку отсюда совсем, вместе с её текстами. В Anki
+   она остаётся: это приложение о ней просто больше не знает. */
+function forgetIds(ids){
+  var n=0;
+  ids.forEach(function(id){
+    var было=false;
+    if(S.srs[id]){ delete S.srs[id]; touch(id,"srs"); было=true; }
+    if(S.status[id]!=null){ delete S.status[id]; touch(id,"status"); было=true; }
+    if(было) n++;
+  });
+  if(n) saveSoon();
+  return n;
+}
+function deleteIds(ids){
+  var set={}; ids.forEach(function(id){ set[id]=1; });
+  var уходят=S.cards.filter(function(c){ return set[c.id]; });
+  if(!уходят.length) return 0;
+  /* одну заметку могут делить несколько карточек: правки полей стираем,
+     только если ушли все её карточки */
+  var остаются={};
+  S.cards.forEach(function(c){ if(!set[c.id]) остаются[c.note]=1; });
+  S.cards=S.cards.filter(function(c){ return !set[c.id]; });
+  уходят.forEach(function(c){
+    S.gone[c.id]=Date.now(); touch(c.id,"gone");
+    ["status","notes","etym","story","sent","srs","lesson"].forEach(function(k){
+      if(S[k][c.id]!=null){ delete S[k][c.id]; touch(c.id,k); }
+    });
+    if(S.edits[c.note]&&!остаются[c.note]){ delete S.edits[c.note]; touch(c.note,"edits"); }
+    if(S.open===c.id) S.open=null;
+    delete S.sel[c.id];
+  });
+  Object.keys(S.diff).forEach(function(k){
+    var ab=k.split("|");
+    if(set[ab[0]]||set[ab[1]]){ delete S.diff[k]; touch(k,"diff"); }
+  });
+  buildIndex();
+  saveAll();
+  return уходят.length;
+}
+function askDelete(ids,after){
+  var n=ids.length; if(!n) return;
+  var head=ids.slice(0,12).map(function(id){ var c=S._byId[id]; return esc(c?mainText(c):id); });
+  openModal(n===1?"Удалить карточку?":"Удалить "+скл(n,"карточку","карточки","карточек")+"?",
+    "В Anki карточка останется. Здесь её больше не будет — вместе с разбором, заметкой и различиями.",
+    '<div class="willWords">'+head.join(" · ")+
+      (n>head.length?' <span class="tail">и ещё '+(n-head.length)+'</span>':"")+'</div>'+
+    '<p class="note" style="margin-top:10px">Свежий экспорт статистики её не вернёт: '+
+      'приложение запомнит, что вы её убрали, и не подхватит её снова.</p>'+
+    '<div class="acts"><button class="btn danger" id="delYes">Удалить</button>'+
+      '<button class="btn ghost" id="delNo">Отмена</button></div>');
+  $("#delNo").onclick=closeModal;
+  $("#delYes").onclick=function(){
+    var k=deleteIds(ids);
+    closeModal(); renderAll();
+    if(after) after(k);
+    toast("Удалено: "+скл(k,"карточка","карточки","карточек"),3000);
+  };
+}
+/* ---------- выбор нескольких карточек ---------- */
+function renderSel(){
+  var n=Object.keys(S.sel).length;
+  $("#list").classList.toggle("picking",S.picking);
+  $("#selbar").hidden=!S.picking;
+  $("#pickBtn").textContent=S.picking?"Не выбирать":"Выбрать";
+  $("#selCount").textContent=n?"Выбрано "+n:"Отметьте карточки";
+  $("#selForget").disabled=$("#selDel").disabled=!n;
+}
+function setPicking(on){
+  S.picking=!!on;
+  if(!S.picking) S.sel={};
+  else S.open=null;                    /* раскрытая карточка мешала бы отмечать */
+  renderList(); renderSel();
+}
+$("#pickBtn").onclick=function(){ setPicking(!S.picking); };
+$("#selOff").onclick=function(){ setPicking(false); };
+$("#selAll").onclick=function(){
+  var v=S._vis||[], все=v.length&&v.every(function(c){ return S.sel[c.id]; });
+  S.sel={};
+  if(!все) v.forEach(function(c){ S.sel[c.id]=1; });
+  renderList(); renderSel();
+  toast(все?"Отметки сняты":"Отмечено: "+v.length,1600);
+};
+$("#selForget").onclick=function(){
+  var ids=Object.keys(S.sel); if(!ids.length) return;
+  var n=forgetIds(ids);
+  S.sel={}; renderAll(); renderSel();
+  toast(n?скл(n,"карточка снова новая","карточки снова новые","карточек снова новые")
+         :"У этих карточек и так не было расписания",3000);
+};
+$("#selDel").onclick=function(){
+  var ids=Object.keys(S.sel); if(!ids.length) return;
+  askDelete(ids,function(){ S.sel={}; renderSel(); });
+};
 function onEdit(e){
-  var host=e.target.closest(".editor");
+  var t=e.target;
+  /* в уроке по кандзи правится разбор знака, а не поля карточки */
+  if(S.drill&&S.drill.kanji){
+    var kf=t.closest("[data-kf]"); if(!kf) return;
+    setKanjiField(S.drill.list[S.drill.i],kf.dataset.kf,kf.value);
+    return;
+  }
+  var host=t.closest(".editor");
   var card=host?S.cards.filter(function(x){ return x.id===host.dataset.ed; })[0]:(S.drill?S.drill.list[S.drill.i]:null);
   if(!card) return;
-  var t=e.target;
   if(t.dataset.etym){ var v=t.value.trim(); if(v) S.etym[card.id]=v; else delete S.etym[card.id]; touch(card.id,"etym"); saveSoon(); return; }
   if(t.dataset.story){ var w=t.value.trim(); if(w) S.story[card.id]=w; else delete S.story[card.id]; touch(card.id,"story"); saveSoon(); return; }
   if(t.dataset.note){ var nv=t.value.trim(); if(nv) S.notes[card.id]=t.value; else delete S.notes[card.id]; touch(card.id,"notes"); saveSoon(); return; }
@@ -2437,10 +2868,30 @@ $("#drill").addEventListener("click",function(e){
 $("#drillShow").onclick=function(){
   if(!S.drill) return;
   S.drill.shown=true; renderDrill(); $("#drillBody").scrollTop=0;
-  if(S.voice) speak(mainText(S.drill.list[S.drill.i]));
+  var x=S.drill.list[S.drill.i];
+  if(S.voice) speak(S.drill.kanji?x:mainText(x));
 };
+function gradeKanji(g){
+  var d=S.drill, ch=d.list[d.i];
+  if(!d.итог) d.итог={ w:0, a:0, держит:0, взято:0 };
+  if(!d.undo) d.undo=[];
+  d.undo.push(srsSnapshot(d,{ id:ch }));
+  if(d.undo.length>200) d.undo.shift();
+  var былВ=!!S.srs[ch], держал=былВ&&(S.srs[ch].i||0)>=7&&isDue(ch)&&g>0;
+  if(g>0){ d.итог.взято++; if(держал) d.итог.держит++; }
+  var n=grade(ch,g);
+  ding(g===0?"miss":"ok");
+  saveSoon();
+  if(n.mins>0&&d.list.length<200) d.list.splice(Math.min(d.list.length,d.i+1+stepGap(n.mins)),0,ch);
+  else d.done++;
+  d.shown=false;
+  if(d.i+1>=d.list.length) return finishLesson();
+  d.i++; renderDrill(); $("#drillBody").scrollTop=0;
+  toast(ch+" — "+(n.mins>0?stepText(n.mins):afterText(n.st.i)),1400);
+}
 $("#drillGrades").addEventListener("click",function(e){
   var b=e.target.closest("[data-g]"); if(!b||!S.drill) return;
+  if(S.drill.kanji) return gradeKanji(+b.dataset.g);
   var d=S.drill, c=d.list[d.i], g=+b.dataset.g;
   var былВ=!!S.srs[c.id], держал=былВ&&(S.srs[c.id].i||0)>=7&&isDue(c.id)&&g>0;
   if(!d.итог) d.итог={ w:0, a:0, держит:0, взято:0 };
@@ -2461,8 +2912,37 @@ $("#drillGrades").addEventListener("click",function(e){
   d.i++; renderDrill(); $("#drillBody").scrollTop=0;
   toast(mainText(c)+" — "+(n.mins>0?stepText(n.mins):afterText(n.st.i)),1400);
 });
+function finishKLesson(){
+  var d=S.drill, num=d.lesson, it=d.итог||{ w:0, a:0, держит:0, взято:0 };
+  ding("done");
+  if(num) logAdd({ l:1 });
+  exitDrill();
+  var again=0, l=num?klessonsList().filter(function(x){ return x.n===num; })[0]:null;
+  if(l) l.list.forEach(function(ch){ if(!S.srs[ch]||isDue(ch)) again++; });
+  var фраза=it.взято
+    ? скл(it.взято,"кандзи ушёл","кандзи ушли","кандзи ушли")+" на повтор"
+    : "Пока ничего не закрыто — кандзи вернутся сегодня же";
+  openModal(num?"Кандзи · урок "+num+" пройден":"Повтор кандзи пройден",
+    num?(again?"Осталось на потом: "+again:"Урок закрыт целиком"):"",
+    '<p class="bigline">'+esc(фраза)+'</p>'+
+    (it.держит?'<p class="note">Память держит: '+it.держит+' — эти вернулись через неделю и дольше, и вы их вспомнили.</p>':"")+
+    (streak()>1?'<p class="note">Подряд дней: '+streak()+'</p>':"")+
+    '<div class="acts"><button class="btn primary" id="kPlanAgain">К урокам</button>'+
+      (d.undo&&d.undo.length?'<button class="btn" id="kPlanUndo">↶ Отменить ответ</button>':"")+
+      '<button class="btn ghost" id="kPlanClose">Закрыть</button></div>');
+  var sh=document.querySelector("#modal .sheet");
+  if(sh){ sh.classList.add("calm"); setTimeout(function(){ sh.classList.remove("calm"); },400); }
+  $("#kPlanAgain").onclick=openKPlan;
+  $("#kPlanClose").onclick=closeModal;
+  if($("#kPlanUndo")) $("#kPlanUndo").onclick=function(){
+    closeModal(); S.drill=d;
+    $("#drill").hidden=false; document.body.style.overflow="hidden";
+    undoGrade();
+  };
+}
 function finishLesson(){
   var d=S.drill, num=d.lesson, it=d.итог||{ w:0, a:0, держит:0, взято:0 };
+  if(d.kanji) return finishKLesson();
   ding("done");
   if(num) logAdd({ l:1 });
   exitDrill();
@@ -2500,6 +2980,7 @@ $("#drillPrev").onclick=function(){ drillMove(-1); };
 $("#drillNext").onclick=function(){ drillMove(1); };
 $("#drillExit").onclick=exitDrill;
 $("#drillDone").onclick=function(){
+  if(!S.drill||S.drill.kanji) return;
   var c=S.drill.list[S.drill.i];
   if(S.status[c.id]==="done") delete S.status[c.id]; else { S.status[c.id]="done"; scheduleIfNew(c.id); }
   touch(c.id,"status");
@@ -2561,30 +3042,37 @@ function download(name,text,type){
 }
 function csvCell(s){ s=String(s==null?"":s); return /[",\n;]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }
 
+/* Длина задаётся потолком, а не вилкой.
+
+   Раньше тут стояло «400–900 символов», и полотно делала нижняя граница:
+   до неё дописывают, даже когда сказать нечего. Так и советуют бороться
+   с многословием — не «пиши короче», а проверяемое ограничение: сколько
+   именно символов, чего не писать, чем нельзя начинать. Фактов от этого
+   не убавляется, убавляется вода. */
 var PROMPT =
-"Ниже JSON-массив японских слов из моей колоды Anki. Они отсортированы по важности: чем выше, тем чаще я проваливал карточку.\n\n"+
-"Для каждого объекта заполни два поля на русском языке.\n\n"+
-"\"etymology\" — разбор и происхождение:\n"+
-"1) по кандзи: значение каждого знака, какое чтение здесь используется (он или кун) и почему;\n"+
-"2) происхождение слова: канго (заимствование из китайского), ваго (исконно японское), гайрайго, васэй-эйго;\n"+
-"3) если есть — как менялось значение, и родственные слова с теми же корнями;\n"+
-"4) одно-два слова, с которыми его легко спутать, и чем они отличаются.\n"+
-"400–900 символов.\n\n"+
-"\"story\" — одна интересная правдивая запись про это слово. Что угодно, лишь бы это было любопытно и запоминалось:\n"+
-"появление слова в известной книге, стихе, фильме, песне, аниме; исторический эпизод или реалия, откуда оно пошло;\n"+
-"культурная или бытовая деталь; неожиданная связь с другим языком; спор лингвистов о нём.\n"+
-"Не пересказывай значение слова и не повторяй разбор из \"etymology\". 200–600 символов.\n\n"+
+"Ниже JSON-массив японских слов из моей колоды Anki, по важности сверху вниз.\n\n"+
+"Заполни для каждого объекта два поля на русском. Указанные размеры — потолок, а не цель:\n"+
+"короче можно и нужно, длиннее нельзя.\n\n"+
+"\"etymology\" — разбор строго по этой схеме, каждый пункт с новой строки, пустой пункт пропускай:\n"+
+"Кандзи: значение каждого знака и какое чтение здесь — он или кун.\n"+
+"Происхождение: одним словом — канго, ваго, гайрайго или васэй-эйго.\n"+
+"Родственные: 3–5 слов через запятую, без пояснений.\n"+
+"Не путать: 1–2 слова и чем отличаются, по фразе на каждое.\n"+
+"До 400 символов на всё поле.\n\n"+
+"\"story\" — один факт про это слово: книга, фильм, песня, исторический эпизод, бытовая деталь,\n"+
+"спор лингвистов. До 250 символов. Нечего сказать — оставь пустую строку, а не выдумку и не отписку.\n\n"+
 "Правила:\n"+
-"- Только проверяемые факты. Если надёжных данных нет — так и напиши, не выдумывай.\n"+
-"- Народную этимологию помечай как народную.\n"+
-"- Если интересного действительно нет, напиши в \"story\" короткое «ничего примечательного» вместо выдумки.\n"+
+"- Только проверяемые факты. Народную этимологию помечай как народную; нет надёжных данных — так и напиши.\n"+
+"- Не пересказывай значение слова: оно у меня на карточке.\n"+
+"- Не повторяй в \"story\" то, что уже сказано в \"etymology\".\n"+
+"- Без вступлений, выводов, вежливости и оборотов вроде «стоит отметить», «интересно, что»,\n"+
+"  «важно понимать». Первое слово — сразу по делу.\n"+
 "- Не меняй \"card_id\", \"word\" и остальные поля, не переставляй и не добавляй объекты.\n"+
-"- Верни ровно тот же JSON-массив целиком.\n\n"+
-"Оформление текста внутри полей (важно, я это читаю с телефона):\n"+
-"- Дели на смысловые абзацы, между абзацами пустая строка (\\n\\n).\n"+
-"- Начинай абзац с короткой пометки и двоеточия: Кандзи: / Происхождение: / Значение: / Родственные: / Не путать:\n"+
-"- Ключевые слова, термины и сами японские слова оборачивай в двойные звёздочки: **канго**, **扱う**.\n"+
-"- Никаких заголовков решётками, таблиц и нумерованных списков.\n";
+"- Верни ровно тот же JSON-массив целиком, без текста до и после него.\n\n"+
+"Оформление внутри полей (читаю с телефона):\n"+
+"- Между пунктами пустая строка (\\n\\n).\n"+
+"- Ключевые слова и японские слова — в двойных звёздочках: **канго**, **扱う**.\n"+
+"- Никаких заголовков, таблиц и нумерованных списков.\n";
 
 function taskRows(list){
   return list.map(function(c,i){
@@ -2778,20 +3266,20 @@ function exportTexts(){
     lines.push([csvCell(c.note),csvCell(c.id),csvCell(mainText(c)),csvCell(et),csvCell(st),csvCell(nt),
       csvCell(раз.join("\n")), S.status[c.id]==="done"?"проработана":""].join(","));
   });
-  var знаки=Object.keys(S.kanji).filter(function(ch){ return hasKanji(ch); });
-  if(!n&&!знаки.length){ toast("Пока нечего выгружать"); return; }
+  var кандзи=Object.keys(S.kanji).filter(function(ch){ return hasKanji(ch); });
+  if(!n&&!кандзи.length){ toast("Пока нечего выгружать"); return; }
   if(n) download("anki_texts_"+дата+".csv",lines.join("\n"));
-  if(знаки.length){
+  if(кандзи.length){
     var кол=["kanji","meaning","readings","radicals","etymology","story","mnemonic","writing","слов_в_колоде"];
     var kl=[кол.join(",")];
-    знаки.sort(function(a,b){ return kanjiLoad(b)-kanjiLoad(a); }).forEach(function(ch){
+    кандзи.sort(function(a,b){ return kanjiLoad(b)-kanjiLoad(a); }).forEach(function(ch){
       var d=kanjiOf(ch);
       kl.push([csvCell(ch),csvCell(d.m||""),csvCell(d.y||""),csvCell(d.r||""),csvCell(d.e||""),
                csvCell(d.s||""),csvCell(d.n||""),csvCell(d.w||""),kanjiWords(ch).length].join(","));
     });
     download("anki_kanji_"+дата+".csv",kl.join("\n"));
   }
-  toast("Выгружено: карточек "+n+(знаки.length?", знаков "+знаки.length:""));
+  toast("Выгружено: карточек "+n+(кандзи.length?", кандзи "+кандзи.length:""));
 }
 function copyCid(){
   var v=S._vis||[]; if(!v.length){ toast("Список пуст"); return; }
@@ -2803,22 +3291,15 @@ function copyCid(){
   openModal("Список карточек для Anki",v.length+" карточек",body);
   $("#modalBody").onclick=function(e){ var b=e.target.closest("[data-copy]"); if(b) copy(parts[+b.dataset.copy]); };
 }
-function bulkDone(){
-  var v=S._vis||[]; if(!v.length){ toast("Список пуст"); return; }
-  var all=v.every(function(c){ return S.status[c.id]==="done"; });
-  v.forEach(function(c){ if(all) delete S.status[c.id]; else { S.status[c.id]="done"; scheduleIfNew(c.id); }
-    touch(c.id,"status"); });
-  saveSoon(); closeModal(); renderHead(); renderChips(); renderList();
-  toast(all?"Отметки сняты":"Отмечено: "+v.length);
-}
 $("#impBackup").addEventListener("change",function(e){
   var f=e.target.files[0]; if(!f) return;
   var fr=new FileReader();
   fr.onload=async function(){
     try{ var j=JSON.parse(fr.result);
       S.edits=j.edits||{}; S.status=j.status||{}; S.notes=j.notes||{}; S.etym=j.etym||{}; S.story=j.story||{}; S.sent=j.sent||{}; S.lastTask=j.lastTask||null; S.mtime=j.mtime||{}; S.mtimes=j.mtimes||{};
-      S.srs=j.srs||{}; S.lesson=j.lesson||{}; S.diff=j.diff||{}; S.log=j.log||{}; S.kanji=j.kanji||{}; S.life=j.life||{}; if(j.size>0) S.size=j.size;
+      S.srs=j.srs||{}; S.lesson=j.lesson||{}; S.diff=j.diff||{}; S.log=j.log||{}; S.kanji=j.kanji||{}; S.life=j.life||{}; S.gone=j.gone||{}; if(j.size>0) S.size=j.size;
       if(j.imports) S.imports=j.imports;
+      applyGone();
       await saveAll(); closeModal(); renderAll(); toast("Восстановлено");
     }catch(x){ toast("Файл не читается"); } };
   fr.readAsText(f);
@@ -2844,8 +3325,8 @@ function deckInfo(){ return S.sync.deck||{ gist:"", sig:"", at:0, n:0, parts:0 }
 function syncPayload(){
   return { v:9, at:Date.now(), edits:S.edits, status:S.status, notes:S.notes,
            etym:S.etym, story:S.story, sent:S.sent, lastTask:S.lastTask,
-           srs:S.srs, lesson:S.lesson, diff:S.diff, log:S.log, kanji:S.kanji, life:S.life, size:S.size||20,
-           mtime:S.mtime, mtimes:S.mtimes, deck:deckInfo() };
+           srs:S.srs, lesson:S.lesson, diff:S.diff, log:S.log, kanji:S.kanji, life:S.life, gone:S.gone,
+           size:S.size||20, mtime:S.mtime, mtimes:S.mtimes, deck:deckInfo() };
 }
 function partName(n){ return CARDPREFIX+"-"+("0"+n).slice(-2)+".json"; }
 function cardOne(c,dicts,lean){
@@ -2900,7 +3381,7 @@ function remoteTime(r,key,id){ var e=lastRemote(r,key,id); return e===undefined?
 function mergeTexts(r){
   var added=0, updated=0, removed=0;
   /* srs и lesson — не строки, а объекты и числа: сравниваем их как есть */
-  ["etym","story","notes","status","sent","srs","lesson","diff","log","kanji","life"].forEach(function(key){
+  ["etym","story","notes","status","sent","srs","lesson","diff","log","kanji","life","gone"].forEach(function(key){
     var rm=r[key]||{}, mine=S[key]||(S[key]={});
     var same=function(a,b){ return typeof a==="object"||typeof b==="object"
       ? JSON.stringify(a)===JSON.stringify(b) : a===b; };
@@ -2943,6 +3424,8 @@ function mergeTexts(r){
   if(r.size>0&&(r.at||0)>(S.sizeAt||0)){ S.size=r.size; S.sizeAt=r.at||0; }
   /* второе устройство могло ещё не обновиться и прислать расписание в старой форме */
   removed+=dropOldSrs();
+  /* приехали следы «эту карточку убрали» — убираем её и здесь */
+  removed+=applyGone();
   return { added:added, updated:updated, removed:removed };
 }
 /* колода из хранилища: новых карточек добавляем всегда, цифры перебиваем только
@@ -2955,6 +3438,7 @@ function mergeRemoteCards(rc){
   for(i=0;i<inc.length;i++){
     var nc=inc[i]; if(!nc||nc.id==null) continue;
     nc.id=String(nc.id); nc.note=String(nc.note==null?nc.id:nc.note); nc.f=nc.f||[];
+    if(S.gone[nc.id]) continue;                  // убранную карточку не тянем и из хранилища
     var e=idx[nc.id], touched=false;
     if(!e){ S.cards.push(nc); idx[nc.id]=nc; added++; continue; }
     if(fresh){
@@ -3023,7 +3507,7 @@ function arrived(t,cards){
     ((cards&&cards.added)?", карточек новых "+cards.added:""),4000);
 }
 function countsText(c){ return c.et+" разборов, "+c.st+" интересного, "+c.nt+" заметок, "+c.dn+" проработано"+
-  (c.kj?", "+c.kj+" знаков":""); }
+  (c.kj?", "+c.kj+" кандзи":""); }
 function stampNow(){ return new Date().toISOString().slice(0,16).replace("T"," "); }
 async function remoteFile(g,name){
   var f=g.files&&g.files[name]; if(!f) return null;
@@ -3352,8 +3836,8 @@ function openPlan(){
   var setSize=async function(v){
     v=Math.max(1,Math.min(200,Math.round(v)||20));
     if(v===lessonSize()) return;
-    S.size=v; S.sizeAt=Date.now(); S.lesson={};      // план пересобирается заново
-    assignLessons(); S.sync.dirty=true; await saveAll(); openPlan();
+    S.size=v; S.sizeAt=Date.now(); S.lesson={};      // план пересобирается заново — и по словам, и по кандзи
+    assignLessons(); kassign(); S.sync.dirty=true; await saveAll(); openPlan();
   };
   $("#modalBody").onclick=function(e){
     var b=e.target.closest("[data-size]"); if(b){ setSize(+b.dataset.size); return; }
@@ -3381,9 +3865,9 @@ function openPlan(){
    с колоды, и её нельзя нафармить на лёгких карточках — вес берётся из той же
    формулы, по которой карточки разложены на уроки. */
 function tallyHTML(){
-  var days=lastDays(14), max=1, всего=0, карт=0;
-  days.forEach(function(d){ if(d.w>max) max=d.w; всего+=d.w; карт+=d.n; });
-  if(!totalWeight()) return "";
+  var days=lastDays(14), max=1, всего=0, карт=0, канд=0;
+  days.forEach(function(d){ if(d.w>max) max=d.w; всего+=d.w; карт+=d.n; канд+=d.k||0; });
+  if(!totalWeight()&&!канд) return "";
   var s=streak(), сегодня=days[days.length-1], рек=heaviestDone(), пр=paceForecast();
   var меток=["","",""];
   var bars=days.map(function(d,i){
@@ -3396,12 +3880,13 @@ function tallyHTML(){
     '<div class="tallyLine">'+
       (s>1?'<b>'+скл(s,"день","дня","дней")+' подряд</b> · ':"")+
       'сегодня <b>'+(сегодня.w||0)+'</b> · за две недели <b>'+всего+'</b> · всего <b>'+totalWeight()+'</b>'+
+      (канд?' · кандзи за две недели <b>'+канд+'</b>':"")+
     '</div>'+
     '<div class="tbars">'+bars+'</div>'+
     '<details class="fold"><summary>итоги подробнее</summary><div class="body">'+
-      '<table class="tallyTab"><tr><th>день</th><th>уроков</th><th>карточек</th><th>вес</th><th>держит</th></tr>'+
-      days.filter(function(d){ return d.n||d.l; }).reverse().map(function(d){
-        return '<tr><td>'+esc(d.день.slice(8)+"."+d.день.slice(5,7))+'</td><td>'+d.l+'</td><td>'+d.n+'</td><td>'+d.w+'</td><td>'+(d.h||"—")+'</td></tr>';
+      '<table class="tallyTab"><tr><th>день</th><th>уроков</th><th>карточек</th><th>кандзи</th><th>вес</th><th>держит</th></tr>'+
+      days.filter(function(d){ return d.n||d.l||d.k; }).reverse().map(function(d){
+        return '<tr><td>'+esc(d.день.slice(8)+"."+d.день.slice(5,7))+'</td><td>'+d.l+'</td><td>'+d.n+'</td><td>'+(d.k||"—")+'</td><td>'+d.w+'</td><td>'+(d.h||"—")+'</td></tr>';
       }).join("")+'</table>'+
       '<p class="note" style="margin-top:10px">В колонке «держит» — карточки, которые вернулись '+
         'через неделю и дольше, и вы их вспомнили. Это и есть доказательство, что память работает.</p>'+
@@ -3436,91 +3921,19 @@ function удержаниеHTML(){
     '<p class="note">Целитесь в 90 %. Держится выше — интервалы можно растянуть; ниже — укоротить. '+
       'Это единственная ручка, которой в расписании Anki двигают удержание.</p>';
 }
-/* Уборка следов.
-
-   Карточку удалили из Anki — а её разбор, заметка, расписание и отметка
-   времени остаются здесь навсегда и ездят в каждой синхронизации. За годы
-   этого накапливается больше, чем живых данных.
-
-   Автоматически такое чистить нельзя: неполный экспорт — одна колода вместо
-   всех, оборванная выгрузка — сделал бы вид, что половины карточек нет,
-   и снёс бы живую работу. Поэтому только вручную и только после отчёта,
-   где видно, что именно уйдёт. Разборы знаков не трогаем никогда: они
-   привязаны к знаку, а не к карточке, и переживают любую колоду. */
-function следы(){
-  var есть=S._byId||{}, из={}, всего=0, сТекстом=0;
-  ["status","notes","etym","story","sent","srs","lesson"].forEach(function(key){
-    var o=S[key]||{}, список=[];
-    Object.keys(o).forEach(function(id){ if(!есть[id]) список.push(id); });
-    if(список.length){ из[key]=список; всего+=список.length;
-      if(key==="notes"||key==="etym"||key==="story") сТекстом+=список.length; }
-  });
-  var пары=[];
-  Object.keys(S.diff||{}).forEach(function(k){
-    var ab=k.split("|");
-    if(!есть[ab[0]]||!есть[ab[1]]) пары.push(k);
-  });
-  if(пары.length){ из.diff=пары; всего+=пары.length; сТекстом+=пары.length; }
-  var метки=[];
-  Object.keys(S.mtime||{}).forEach(function(id){ if(!есть[id]&&id.indexOf("|")<0) метки.push(id); });
-  return { из:из, метки:метки, всего:всего, сТекстом:сТекстом };
-}
-/* Резервная копия нужна из двух мест: из меню и перед уборкой следов,
-   поэтому вынесена отдельно. Она скачивается файлом и от хранилища
-   браузера не зависит — это последняя линия обороны для ваших текстов. */
+/* Резервная копия скачивается файлом и от хранилища браузера не зависит —
+   это последняя линия обороны для ваших текстов. */
 function backup(){
   download("anki_backup.json",JSON.stringify({v:7,edits:S.edits,status:S.status,notes:S.notes,
     etym:S.etym,story:S.story,sent:S.sent,lastTask:S.lastTask,mtime:S.mtime,mtimes:S.mtimes,imports:S.imports,
-    srs:S.srs,lesson:S.lesson,diff:S.diff,log:S.log,kanji:S.kanji,life:S.life,size:lessonSize()},null,1),
+    srs:S.srs,lesson:S.lesson,diff:S.diff,log:S.log,kanji:S.kanji,life:S.life,gone:S.gone,size:lessonSize()},null,1),
     "application/json");
-}
-function openTidy(){
-  if(!S.cards.length){ toast("Сначала загрузите card_summary.csv"); return; }
-  var f=следы();
-  var имена={ status:"отметки «проработано»", notes:"заметки", etym:"разборы", story:"интересное",
-              sent:"отметки о выгрузке", srs:"расписание повторов", lesson:"привязки к урокам",
-              diff:"различия между парами" };
-  var строки=Object.keys(f.из).map(function(k){
-    return '<tr><td>'+esc(имена[k]||k)+'</td><td>'+f.из[k].length+'</td></tr>'; }).join("");
-  openModal("Прибраться","следы от карточек, которых нет в нынешней колоде",
-    (!f.всего
-      ? '<p class="bigline">Прибираться нечего.</p><p class="note">Все данные привязаны к карточкам, которые есть в колоде.</p>'
-      : '<p class="bigline">Нашёл '+скл(f.всего,"след","следа","следов")+'</p>'+
-        '<table class="tallyTab"><tr><th>что</th><th>сколько</th></tr>'+строки+'</table>'+
-        (f.сТекстом
-          ? '<p class="note" style="margin-top:10px"><b>Осторожно: среди них '+f.сТекстом+
-            ' с вашим текстом</b> — разборы, заметки или различия. Если колода выгружена не целиком, '+
-            'эти карточки на самом деле живы, и текст пропадёт зря. Сделайте резервную копию перед уборкой.</p>'
-          : '<p class="note" style="margin-top:10px">Вашего текста среди них нет — только служебные отметки.</p>')+
-        '<p class="note">Разборы знаков не трогаю: они привязаны к знаку, а не к карточке.</p>'+
-        '<div class="acts" style="margin-top:12px">'+
-          '<button class="btn" id="tidyBackup">Сначала резервную копию</button>'+
-          '<button class="btn danger" id="tidyGo">Убрать '+f.всего+'</button>'+
-          '<button class="btn ghost" id="tidyNo">Не надо</button></div>'));
-  var b=$("#tidyBackup"); if(b) b.onclick=backup;
-  var no=$("#tidyNo"); if(no) no.onclick=closeModal;
-  var go=$("#tidyGo");
-  if(go) go.onclick=async function(){
-    var f2=следы(), убрано=0;
-    Object.keys(f2.из).forEach(function(key){
-      f2.из[key].forEach(function(id){
-        delete S[key][id];
-        if(S.mtimes[key]) delete S.mtimes[key][id];
-        убрано++;
-      });
-    });
-    f2.метки.forEach(function(id){ delete S.mtime[id]; });
-    S.sync.dirty=true;
-    await saveTexts();
-    closeModal(); renderAll();
-    toast("Убрано "+скл(убрано,"след","следа","следов")+". Если это ошибка — восстановите из копии.",6000);
-  };
 }
 function exportLog(){
   var by=logByDay(), дни=Object.keys(by).sort();
   if(!дни.length){ toast("Заниматься ещё не начинали"); return; }
-  var lines=["день,уроков,карточек,вес,держит"];
-  дни.forEach(function(d){ var e=by[d]; lines.push([d,e.l,e.n,e.w,e.h].join(",")); });
+  var lines=["день,уроков,карточек,кандзи,вес,держит"];
+  дни.forEach(function(d){ var e=by[d]; lines.push([d,e.l,e.n,e.k||0,e.w,e.h].join(",")); });
   download("anki_итоги_"+dayKey()+".csv",lines.join("\n"));
   toast("Выгружено "+скл(дни.length,"день","дня","дней"));
 }
@@ -3560,12 +3973,10 @@ function openMenu(){
       '<button class="item" data-m="task">Задание для нейросети<small>по тому, что сейчас в списке; можно и переделать старое</small></button>'+
       '<button class="item" data-m="ktask">Задание по кандзи<small>значения, радикалы, мнемоники</small></button>'+
       '<button class="item" data-m="cid">Список cid: для Anki<small>чтобы найти эти карточки в браузере Anki</small></button>'+
-      '<button class="item" data-m="bulk">Отметить всё видимое проработанным</button><button class="item" data-m="forget">Забыть, что уже выгружено<small>тогда эти слова снова попадут в задание</small></button>'+
       '<hr>'+
-      '<button class="item" data-m="texts">Скачать разборы и заметки<small>CSV: карточки, различия и знаки</small></button>'+
+      '<button class="item" data-m="texts">Скачать разборы и заметки<small>CSV: карточки, различия и кандзи</small></button>'+
       '<button class="item" data-m="backup">Резервная копия<small>JSON со всеми вашими текстами</small></button>'+
       '<button class="item" data-m="restore">Восстановить из копии</button>'+
-      '<button class="item" data-m="tidy">Прибраться<small>следы от карточек, которых больше нет в колоде</small></button>'+
       '<hr>'+
       '<button class="item" data-m="help">Как пользоваться</button>'+
       '<button class="item danger" data-m="wipe">Очистить всё</button>'+
@@ -3578,11 +3989,6 @@ function openMenu(){
     if(m==="task") openTask();
     if(m==="ktask") openKanjiTask();
     if(m==="cid") copyCid();
-    if(m==="tidy") openTidy();
-    if(m==="bulk") bulkDone();
-    if(m==="forget"){ Object.keys(S.sent).forEach(function(id){ touch(id,"sent"); });
-      S.sent={}; S.lastTask=null; saveSoon(); closeModal(); renderList();
-      toast("Отметки о выгрузке сброшены"); }
     if(m==="texts"){ exportTexts(); closeModal(); }
     if(m==="backup"){ backup(); closeModal(); }
     if(m==="restore") $("#impBackup").click();
@@ -3604,15 +4010,24 @@ function openHelp(){
     '<p style="margin-top:8px"><b>Чтобы слово перестало путаться.</b> В карточке под «похожими словами» '+
       'есть строка «в чём разница» — она хранится на паре и видна с обеих сторон. '+
       'Это главное лекарство: путаница между близкими словами держит их в провалах прочнее, чем сложность.</p>'+
-    '<p style="margin-top:8px"><b>Знаки.</b> Кнопка <b>Знаки</b> открывает все кандзи колоды разом — '+
-      'от самых мешающих к остальным, с поиском и фильтром «не разобраны». В строке списка знак '+
+    '<p style="margin-top:8px"><b>Забыть и удалить.</b> В раскрытой карточке есть <b>Забыть</b> — '+
+      'слово снова становится новым и проходит обучение заново; разбор, заметка и различия остаются. '+
+      'Рядом <b>Удалить</b> — карточки здесь больше не будет, и свежий экспорт её не вернёт '+
+      '(в самой Anki она останется). То же на нескольких сразу: кнопка <b>Выбрать</b> над списком, '+
+      'отметить строки — и внизу появятся «Забыть» и «Удалить».</p>'+
+    '<p style="margin-top:8px"><b>Кандзи.</b> Кнопка <b>Кандзи</b> открывает все кандзи колоды разом — '+
+      'от самых мешающих к остальным, с поиском и фильтром «не разобраны». В строке списка кандзи '+
       'открывается <b>долгим нажатием</b> (обычный тап по-прежнему раскрывает карточку), '+
       'а в раскрытой карточке и в уроке — обычным нажатием на полоску под словом. '+
-      'Подчёркнутые знаки — уже разобранные.</p>'+
-    '<p style="margin-top:8px">В окне знака — значение, чтения, радикалы и их значения, этимология, '+
-      'история, мнемоника и порядок черт, а ниже <b>все слова вашей колоды с этим знаком</b> '+
-      'с числом провалов: видно, где именно знак мешает. Тексты пишете сами или собираете '+
-      'нейросетью — кнопка «Задание» на экране знаков или ⋯ → Задание по кандзи.</p>'+
+      'Подчёркнутые кандзи — уже разобранные.</p>'+
+    '<p style="margin-top:8px">В окне кандзи — значение, чтения, радикалы и их значения, этимология, '+
+      'история, мнемоника и порядок черт, а ниже <b>все слова вашей колоды с этим кандзи</b> '+
+      'с числом провалов: видно, где именно он мешает. Тексты пишете сами или собираете '+
+      'нейросетью — кнопка «Задание» на экране кандзи или ⋯ → Задание по кандзи.</p>'+
+    '<p style="margin-top:8px"><b>Уроки по кандзи</b> — кнопка <b>Заниматься</b> на том же экране. '+
+      'Устроены как уроки по словам: те же три кнопки и то же расписание, только спрашивается '+
+      'значение по знаку — в колоде вы его так никогда не вспоминаете. В план идут разобранные '+
+      'кандзи; неразобранные появятся там сами, как только у них будет значение.</p>'+
     '<p style="margin-top:8px"><b>С клавиатуры.</b> В уроке: <b>пробел</b> показывает разбор, '+
       '<b>1</b> — не помню, <b>2</b> — с трудом, <b>3</b> — помню. Цифры срабатывают только '+
       'когда разбор уже открыт, чтобы не оценить вслепую.</p>'+
@@ -3644,8 +4059,8 @@ function confirmWipe(){
     var ks=await slist("ankidash:");
     for(var i=0;i<ks.length;i++) await sdel(ks[i]);
     S.cards=[]; S.edits={}; S.status={}; S.notes={}; S.etym={}; S.story={}; S.sent={}; S.lastTask=null;
-    S.mtime={}; S.mtimes={}; S.srs={}; S.lesson={}; S.diff={}; S.log={}; S.kanji={}; S.life={}; S.imports=[]; S.deck=null;
-    S.open=null; S.filters={}; setHas(false);
+    S.mtime={}; S.mtimes={}; S.srs={}; S.lesson={}; S.diff={}; S.log={}; S.kanji={}; S.life={}; S.gone={}; S.imports=[]; S.deck=null;
+    S.open=null; S.filters={}; S.sel={}; S.picking=false; setHas(false);
     /* Если обмен настроен, всё это тут же приехало бы обратно: вместе
        с текстами стёрлись и отметки времени, по которым видно, что их удалили.
        Поэтому обмен приостанавливаем, а токен и адрес оставляем. */
@@ -3680,6 +4095,10 @@ function systemDark(){
 function applyTheme(){
   if(S.theme!=="light"&&S.theme!=="dark") S.theme=systemDark()?"dark":"light";
   document.documentElement.setAttribute("data-theme",S.theme);
+  /* Полоска браузера и строка состояния телефона красятся этим цветом. Он был
+     прибит к тёмному: на светлой теме приложение получало чужую тёмную шапку. */
+  var m=document.querySelector('meta[name="theme-color"]');
+  if(m) m.setAttribute("content",S.theme==="dark"?"#101312":"#F4F2EC");
   var b=$("#theme");
   if(b) b.title=S.theme==="dark"?"Тема: тёмная. Нажмите — станет светлой"
                                 :"Тема: светлая. Нажмите — станет тёмной";
@@ -3695,8 +4114,10 @@ document.addEventListener("keydown",function(e){
   if(e.key==="Escape"){
     if(typing){ e.target.blur(); return; }
     if(!$("#modal").hidden){ closeModal(); return; }
-    if(!$("#ksheet").hidden){ exitKanjiSheet(); return; }
+    /* урок стоит поверх экрана кандзи — закрываем то, что сверху */
     if(S.drill){ exitDrill(); return; }
+    if(!$("#ksheet").hidden){ exitKanjiSheet(); return; }
+    if(S.picking){ setPicking(false); return; }
     if(S.open){ S.open=null; renderList(); }
     return;
   }
@@ -3720,7 +4141,7 @@ document.addEventListener("keydown",function(e){
     }
     if(e.key==="ArrowRight"||e.key==="n"){ drillMove(1); e.preventDefault(); }
     if(e.key==="ArrowLeft"||e.key==="p"){ drillMove(-1); e.preventDefault(); }
-    if(e.key==="d"){ $("#drillDone").click(); e.preventDefault(); }
+    if(e.key==="d"&&S.drill.mode!=="learn"){ $("#drillDone").click(); e.preventDefault(); }
     return;
   }
   if(!S.cards.length) return;
